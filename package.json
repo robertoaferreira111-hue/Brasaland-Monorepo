@@ -1,0 +1,14 @@
+{
+  "name": "brasaland-operations",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Brasaland operations data-processing utilities (Milestone 2)",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "demo": "node --import tsx src/demo.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
