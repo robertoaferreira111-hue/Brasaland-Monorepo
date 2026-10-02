@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Join Brasa Points | Brasaland</title>
+    <meta
+      name="description"
+      content="Register for Brasa Points, the Brasaland loyalty program. Earn points at 14 locations in Colombia and Florida. Customers must be 18 or older."
+    />
+    <link rel="canonical" href="https://brasaland.com/application.html" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="bg-stone-100 text-stone-950 antialiased">
+    <a
+      class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-full focus:bg-orange-900 focus:px-4 focus:py-2 focus:text-orange-50 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-orange-900"
+      href="#main"
+      >Skip to content</a
+    >
+    <header class="border-b border-stone-300 bg-stone-100">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <a class="font-serif text-2xl font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" href="index.html">Brasaland</a>
+        <button
+          id="nav-toggle"
+          class="min-h-11 rounded-full border border-stone-400 px-3 py-2 text-sm md:hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+        >
+          Open navigation
+        </button>
+      </div>
+      <nav id="site-nav" class="mx-auto hidden max-w-6xl flex-col gap-1 px-4 pb-4 md:flex md:flex-row md:px-4 md:pb-3" aria-label="Primary">
+        <a class="rounded-full px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" href="index.html">Home</a>
+        <a class="rounded-full px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" href="index.html#locations">Locations</a>
+        <a class="rounded-full px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" href="index.html#menu">Menu</a>
+        <a class="rounded-full px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" href="application.html" aria-current="page">Brasa Points</a>
+        <a class="rounded-full px-3 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" href="index.html#contact">Contact</a>
+      </nav>
+    </header>
+    <p class="border-b border-stone-300 bg-white px-4 py-3 text-center text-sm md:text-base">
+      Want to place an order? Call your favorite location or visit us directly. Online ordering coming soon!
+    </p>
+    <main id="main" class="mx-auto max-w-3xl px-4 py-12" tabindex="-1">
+      <h1 class="font-serif text-4xl font-semibold sm:text-5xl">Join Brasa Points</h1>
+      <p class="mt-4 leading-7 text-stone-700">Customers must be 18 or older. This form registers you for the loyalty program. It does not place an order or a reservation.</p>
+      <ul class="mt-4 list-disc space-y-2 pl-5">
+        <li>Earn points with every visit</li>
+        <li>Accumulate 1 point for every $10,000 COP or $5 USD</li>
+        <li>Redeem your points for discounts and free dishes</li>
+        <li>Exclusive offers for members</li>
+        <li>100% digital registration - no more paper cards!</li>
+      </ul>
+
+      <div id="success" class="mt-8 hidden rounded-3xl border border-stone-300 bg-white p-6" role="status" tabindex="-1">
+        <h2 class="font-serif text-3xl font-semibold">Welcome to Brasa Points!</h2>
+        <p class="mt-3 leading-7">Your registration was successful. You will receive a confirmation email in the next few minutes with your account details and how to start earning points.</p>
+        <p class="mt-3 leading-7">You can now enjoy your benefits at any of our 14 locations!</p>
+      </div>
+
+      <form id="loyalty-form" class="mt-8 space-y-5" novalidate>
+        <div>
+          <label class="block text-sm font-medium" for="full-name">Full name</label>
+          <input class="mt-1 min-h-11 w-full rounded-2xl border border-stone-400 bg-white px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="full-name" name="full-name" type="text" autocomplete="name" required />
+          <p class="mt-1 text-sm text-orange-900" id="full-name-error" aria-live="polite"></p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium" for="email">Email</label>
+          <input class="mt-1 min-h-11 w-full rounded-2xl border border-stone-400 bg-white px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="email" name="email" type="email" autocomplete="email" required />
+          <p class="mt-1 text-sm text-orange-900" id="email-error" aria-live="polite"></p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium" for="phone">Phone</label>
+          <input class="mt-1 min-h-11 w-full rounded-2xl border border-stone-400 bg-white px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="phone" name="phone" type="tel" autocomplete="tel" placeholder="+57 300 123 4567" required />
+          <p class="mt-1 text-sm text-orange-900" id="phone-error" aria-live="polite"></p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium" for="country">Country</label>
+          <select class="mt-1 min-h-11 w-full rounded-2xl border border-stone-400 bg-white px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="country" name="country" required>
+            <option value="">Select your country</option>
+            <option>Colombia</option>
+            <option>United States</option>
+          </select>
+          <p class="mt-1 text-sm text-orange-900" id="country-error" aria-live="polite"></p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium" for="city">City</label>
+          <select class="mt-1 min-h-11 w-full rounded-2xl border border-stone-400 bg-white px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="city" name="city" required>
+            <option value="">Select your city</option>
+          </select>
+          <p class="mt-1 text-sm text-orange-900" id="city-error" aria-live="polite"></p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium" for="favorite-location">Favorite Brasaland location</label>
+          <select class="mt-1 min-h-11 w-full rounded-2xl border border-stone-400 bg-white px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="favorite-location" name="favorite-location">
+            <option value="">Select a location (optional)</option>
+          </select>
+          <p class="mt-1 text-sm text-orange-900" id="favorite-location-error" aria-live="polite"></p>
+        </div>
+
+        <fieldset class="rounded-3xl border border-stone-300 bg-white p-4">
+          <legend class="px-1 text-sm font-medium">Dietary preferences</legend>
+          <p class="text-sm text-stone-700" id="dietary-hint">Optional. Choose any that apply.</p>
+          <div class="mt-3 grid gap-2">
+            <label class="flex min-h-11 items-center gap-3" for="diet-none"><input class="size-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="diet-none" name="dietary" type="checkbox" value="No restrictions" /> No restrictions</label>
+            <label class="flex min-h-11 items-center gap-3" for="diet-vegetarian"><input class="size-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="diet-vegetarian" name="dietary" type="checkbox" value="Vegetarian" /> Vegetarian</label>
+            <label class="flex min-h-11 items-center gap-3" for="diet-gluten"><input class="size-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="diet-gluten" name="dietary" type="checkbox" value="Gluten-free" /> Gluten-free</label>
+            <label class="flex min-h-11 items-center gap-3" for="diet-other"><input class="size-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="diet-other" name="dietary" type="checkbox" value="Other" /> Other</label>
+          </div>
+        </fieldset>
+
+        <div>
+          <label class="block text-sm font-medium" for="source">How did you find us?</label>
+          <select class="mt-1 min-h-11 w-full rounded-2xl border border-stone-400 bg-white px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="source" name="source" required>
+            <option value="">Select an option</option>
+            <option>Social media</option>
+            <option>Recommendation</option>
+            <option>Walked by</option>
+            <option>Internet search</option>
+            <option>Other</option>
+          </select>
+          <p class="mt-1 text-sm text-orange-900" id="source-error" aria-live="polite"></p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium" for="date-of-birth">Date of birth</label>
+          <input class="mt-1 min-h-11 w-full rounded-2xl border border-stone-400 bg-white px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="date-of-birth" name="date-of-birth" type="date" autocomplete="bday" required />
+          <p class="mt-1 text-sm text-orange-900" id="date-of-birth-error" aria-live="polite"></p>
+        </div>
+
+        <div>
+          <label class="flex min-h-11 items-start gap-3" for="accept-terms">
+            <input class="mt-1 size-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="accept-terms" name="accept-terms" type="checkbox" required />
+            <span>I accept program terms</span>
+          </label>
+          <p class="mt-1 text-sm text-orange-900" id="accept-terms-error" aria-live="polite"></p>
+        </div>
+
+        <div>
+          <label class="flex min-h-11 items-start gap-3" for="offers">
+            <input class="mt-1 size-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="offers" name="offers" type="checkbox" />
+            <span>I want to receive offers via email</span>
+          </label>
+        </div>
+
+        <div class="flex flex-wrap gap-3">
+          <button class="inline-flex min-h-11 items-center rounded-full bg-orange-900 px-5 py-3 text-sm font-semibold text-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" type="submit">Join Brasa Points</button>
+        </div>
+      </form>
+      <button class="mt-3 inline-flex min-h-11 items-center rounded-full border border-stone-400 bg-white px-5 py-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-900" id="clear-form" type="button">Clear</button>
+    </main>
+    <footer class="border-t border-stone-300 bg-stone-950 text-stone-50">
+      <div class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <p>© 2025 Brasaland. All rights reserved.</p>
+        <p>
+          <a class="underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-50" href="https://instagram.com/brasaland" rel="noopener noreferrer" target="_blank">Instagram<span class="sr-only"> (opens in a new tab)</span></a>
+          <span aria-hidden="true"> | </span>
+          <a class="underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-50" href="https://facebook.com/brasaland" rel="noopener noreferrer" target="_blank">Facebook<span class="sr-only"> (opens in a new tab)</span></a>
+        </p>
+      </div>
+    </footer>
+    <script src="validation.js"></script>
+    <script>
+      const toggle = document.getElementById("nav-toggle")
+      const nav = document.getElementById("site-nav")
+      toggle.addEventListener("click", () => {
+        const open = nav.classList.toggle("hidden") === false
+        toggle.setAttribute("aria-expanded", String(open))
+        toggle.textContent = open ? "Close navigation" : "Open navigation"
+      })
+    </script>
+  </body>
+</html>
