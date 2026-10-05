@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Dev-only live-API verification scripts (not part of the app).
+    "scripts/**",
   ]),
 ]);
 

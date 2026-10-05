@@ -29,10 +29,11 @@ export function PipelineControls({
     <section className="grid gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
       <div>
         <h2 className="text-lg font-semibold text-[var(--ink)]">
-          Pipeline controls
+          Update status or stage
         </h2>
         <p className="text-sm text-[var(--muted)]">
-          Update status or stage with a single selection.
+          Move this applicant through the Brasaland People &amp; Talent process
+          with a single selection.
         </p>
       </div>
 

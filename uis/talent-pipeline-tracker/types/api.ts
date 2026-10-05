@@ -1,7 +1,6 @@
 /**
- * Canonical API types for the Talent Tracker (Phase 1).
+ * Canonical API types for the Talent Tracker.
  * Field names match the backend contract exactly.
- * Pre-existing `types/candidate.ts` is left untouched; prefer these types going forward.
  */
 
 /** OpenAPI-documented status filter / record values (includes values not always present in live samples). */

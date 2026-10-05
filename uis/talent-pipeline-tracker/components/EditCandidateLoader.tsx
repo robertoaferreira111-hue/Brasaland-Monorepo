@@ -68,7 +68,7 @@ export function EditCandidateLoader({ id }: { id: string }) {
           Edit {data.full_name}
         </h1>
         <p className="text-sm text-[var(--muted)]">
-          Correct candidate data when information arrives incomplete or wrong.
+          Correct applicant data when information arrives incomplete or wrong.
         </p>
       </div>
       <CandidateForm

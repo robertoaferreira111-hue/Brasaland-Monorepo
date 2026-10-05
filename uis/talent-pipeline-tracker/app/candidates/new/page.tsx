@@ -16,8 +16,8 @@ export default function NewCandidatePage() {
           Register candidate
         </h1>
         <p className="text-sm text-[var(--muted)]">
-          Add candidates who apply through channels outside the main intake
-          flow.
+          Add applicants who reach Brasaland through channels outside the main
+          Executive Assistant intake.
         </p>
       </div>
       <CandidateForm mode="create" />

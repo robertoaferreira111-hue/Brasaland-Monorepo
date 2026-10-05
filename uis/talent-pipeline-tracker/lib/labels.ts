@@ -1,4 +1,4 @@
-import type { CandidateStage, CandidateStatus } from "@/types/candidate";
+import type { CandidateStage, CandidateStatus } from "@/types/api";
 
 export const STATUS_LABELS: Record<CandidateStatus, string> = {
   received: "Received",

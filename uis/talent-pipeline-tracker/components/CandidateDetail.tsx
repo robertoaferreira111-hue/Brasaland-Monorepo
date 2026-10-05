@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState, type ReactNode } from "react";
-import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FeedbackBanner } from "@/components/FeedbackBanner";
 import { ListNavLink } from "@/components/ListNavLink";
 import { NotesPanel } from "@/components/NotesPanel";
@@ -28,9 +28,19 @@ function isSafeHttpUrl(value: string | null | undefined): value is string {
   }
 }
 
+function noticeMessage(notice: string | null): string | null {
+  if (notice === "registered") return "Candidate registered successfully.";
+  if (notice === "updated") return "Candidate updated successfully.";
+  return null;
+}
+
 export function CandidateDetail({ id }: { id: string }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const returnQuery = searchParams.get("return");
+  const noticeParam = searchParams.get("notice");
+  const [formNotice] = useState(() => noticeMessage(noticeParam));
 
   const loader = useCallback(() => getCandidate(id), [id]);
   const { data, error, errorStatus, status, refetch } = useAsync(loader);
@@ -45,6 +55,20 @@ export function CandidateDetail({ id }: { id: string }) {
   >("idle");
   const [patchError, setPatchError] = useState<string | null>(null);
   const [patchSuccess, setPatchSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!noticeParam) return;
+    const params = new URLSearchParams(searchParams.toString());
+    if (!params.has("notice")) return;
+    params.delete("notice");
+    const query = params.toString();
+    const timer = window.setTimeout(() => {
+      router.replace(query ? `${pathname}?${query}` : pathname, {
+        scroll: false,
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [noticeParam, pathname, router, searchParams]);
 
   async function applyPatch(
     payload: { status?: CandidateStatus; stage?: CandidateStage },
@@ -113,6 +137,10 @@ export function CandidateDetail({ id }: { id: string }) {
 
   return (
     <div className="grid gap-6">
+      {formNotice ? (
+        <FeedbackBanner tone="success" message={formNotice} />
+      ) : null}
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm text-[var(--muted)]">

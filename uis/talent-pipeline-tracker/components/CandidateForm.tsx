@@ -3,6 +3,7 @@
 import { FormEvent, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { FeedbackBanner } from "@/components/FeedbackBanner";
+import { buildDetailHrefAfterSave } from "@/lib/listNavigation";
 import {
   fieldErrorsFromApiError,
   hasFormErrors,
@@ -33,11 +34,6 @@ const emptyValues: CandidateCreatePayload = {
   linkedin_url: "",
   cv_url: "",
 };
-
-function detailHref(id: string, returnQuery?: string | null): string {
-  if (!returnQuery) return `/candidates/${id}`;
-  return `/candidates/${id}?return=${encodeURIComponent(returnQuery)}`;
-}
 
 export function CandidateForm({
   mode,
@@ -89,11 +85,21 @@ export function CandidateForm({
       if (mode === "create") {
         const created = await createCandidate(payload);
         setSuccess("Candidate registered successfully.");
-        router.push(detailHref(created.id, returnQuery));
+        router.push(
+          buildDetailHrefAfterSave(created.id, {
+            returnQuery,
+            notice: "registered",
+          }),
+        );
       } else if (initialValues) {
         const updated = await updateCandidate(initialValues.id, payload);
         setSuccess("Candidate updated successfully.");
-        router.push(detailHref(updated.id, returnQuery));
+        router.push(
+          buildDetailHrefAfterSave(updated.id, {
+            returnQuery,
+            notice: "updated",
+          }),
+        );
       }
     } catch (err) {
       const apiFieldErrors = fieldErrorsFromApiError(err);
