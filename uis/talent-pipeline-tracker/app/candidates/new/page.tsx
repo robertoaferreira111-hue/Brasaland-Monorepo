@@ -1,14 +1,15 @@
-import Link from "next/link";
+import { Suspense } from "react";
 import { CandidateForm } from "@/components/CandidateForm";
+import { ListNavLink } from "@/components/ListNavLink";
 
 export default function NewCandidatePage() {
   return (
     <div className="grid gap-4">
       <div>
         <p className="text-sm text-[var(--muted)]">
-          <Link href="/" className="hover:underline">
-            Candidates
-          </Link>{" "}
+          <Suspense fallback={<span>Candidates</span>}>
+            <ListNavLink className="hover:underline">Candidates</ListNavLink>
+          </Suspense>{" "}
           / Register
         </p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--ink)]">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { FeedbackBanner } from "@/components/FeedbackBanner";
 import { ListNavLink } from "@/components/ListNavLink";
@@ -10,7 +10,6 @@ import { PipelineControls } from "@/components/PipelineControls";
 import { StageBadge } from "@/components/StageBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAsync } from "@/hooks/useAsync";
-import { rememberListQuery } from "@/lib/listNavigation";
 import { getCandidate, patchCandidate } from "@/services/records";
 import type {
   CandidateRecord,
@@ -33,20 +32,8 @@ export function CandidateDetail({ id }: { id: string }) {
   const searchParams = useSearchParams();
   const returnQuery = searchParams.get("return");
 
-  useEffect(() => {
-    if (returnQuery !== null) {
-      rememberListQuery(returnQuery);
-    }
-  }, [returnQuery]);
-
   const loader = useCallback(() => getCandidate(id), [id]);
-  const {
-    data,
-    error,
-    errorStatus,
-    status,
-    refetch,
-  } = useAsync(loader);
+  const { data, error, errorStatus, status, refetch } = useAsync(loader);
 
   const [patched, setPatched] = useState<CandidateRecord | null>(null);
   const [patchedForId, setPatchedForId] = useState<string | null>(null);
@@ -68,12 +55,10 @@ export function CandidateDetail({ id }: { id: string }) {
     setPatchSuccess(null);
     try {
       const updated = await patchCandidate(id, payload);
-      // API response is the source of truth for the displayed candidate.
       setPatched(updated);
       setPatchedForId(id);
       setPatchStatus("success");
       setPatchSuccess(successMessage);
-      // Confirm useAsync race guard + keepPreviousData after mutation.
       await refetch({ keepPreviousData: true });
     } catch (err) {
       setPatchStatus("error");
@@ -122,6 +107,10 @@ export function CandidateDetail({ id }: { id: string }) {
     );
   }
 
+  const editHref = returnQuery
+    ? `/candidates/${candidate.id}/edit?return=${encodeURIComponent(returnQuery)}`
+    : `/candidates/${candidate.id}/edit`;
+
   return (
     <div className="grid gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -139,7 +128,7 @@ export function CandidateDetail({ id }: { id: string }) {
           </div>
         </div>
         <Link
-          href={`/candidates/${candidate.id}/edit`}
+          href={editHref}
           className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--ink)] hover:bg-[var(--surface-muted)]"
         >
           Edit candidate
