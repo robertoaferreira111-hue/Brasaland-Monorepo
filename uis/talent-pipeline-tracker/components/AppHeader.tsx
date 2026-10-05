@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { ListNavLink } from "@/components/ListNavLink";
 
 export function AppHeader() {
   return (
@@ -8,20 +11,17 @@ export function AppHeader() {
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
             Brasaland Digital
           </p>
-          <Link href="/" className="text-xl font-semibold tracking-tight text-[var(--ink)]">
+          <ListNavLink className="text-xl font-semibold tracking-tight text-[var(--ink)]">
             People &amp; Talent
-          </Link>
+          </ListNavLink>
           <p className="mt-0.5 text-sm text-[var(--muted)]">
             Executive Assistant pipeline · Medellín HQ
           </p>
         </div>
         <nav className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="text-sm font-medium text-[var(--muted)] transition hover:text-[var(--ink)]"
-          >
+          <ListNavLink className="text-sm font-medium text-[var(--muted)] transition hover:text-[var(--ink)]">
             Candidates
-          </Link>
+          </ListNavLink>
           <Link
             href="/candidates/new"
             className="rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-strong)]"

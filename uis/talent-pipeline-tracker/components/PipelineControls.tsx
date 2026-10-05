@@ -1,7 +1,7 @@
 "use client";
 
 import { STAGE_OPTIONS, STATUS_OPTIONS } from "@/lib/labels";
-import type { CandidateStage, CandidateStatus } from "@/types/candidate";
+import type { CandidateStage, CandidateStatus } from "@/types/api";
 import { FeedbackBanner } from "@/components/FeedbackBanner";
 
 type PipelineControlsProps = {
