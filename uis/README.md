@@ -23,4 +23,17 @@ npx http-server . -p 3000 -a 0.0.0.0
 
 See [website/README.md](./website/README.md).
 
+## `talent-pipeline-tracker` — Brasaland People & Talent
+
+Milestone 3 internal talent pipeline tracker (Next.js App Router + TypeScript + Tailwind). Used by People & Talent to manage the Executive Assistant search.
+
+```bash
+cd uis/talent-pipeline-tracker
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+See [talent-pipeline-tracker/README.md](./talent-pipeline-tracker/README.md).
+
 > _Estas instrucciones también están disponibles en [español](./README.es.md)._
