@@ -1,5 +1,5 @@
 import { stageLabel } from "@/lib/labels";
-import type { CandidateStage } from "@/types/candidate";
+import type { CandidateStage } from "@/types/api";
 
 export function StageBadge({ stage }: { stage: CandidateStage }) {
   return (

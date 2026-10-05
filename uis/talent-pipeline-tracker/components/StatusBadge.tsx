@@ -1,5 +1,5 @@
 import { statusLabel } from "@/lib/labels";
-import type { CandidateStatus } from "@/types/candidate";
+import type { CandidateStatus } from "@/types/api";
 
 const statusStyles: Record<CandidateStatus, string> = {
   received: "bg-sky-100 text-sky-900",

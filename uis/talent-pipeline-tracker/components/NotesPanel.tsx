@@ -96,7 +96,8 @@ export function NotesPanel({ recordId }: { recordId: string }) {
           Internal notes
         </h2>
         <p className="text-sm text-[var(--muted)]">
-          Private notes after calls and interviews.
+          Private notes for Ashley Turner&apos;s People &amp; Talent team after
+          calls and interviews.
         </p>
       </div>
 

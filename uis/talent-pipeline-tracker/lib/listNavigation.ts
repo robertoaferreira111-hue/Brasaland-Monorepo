@@ -11,6 +11,25 @@ export function buildDetailHref(candidateId: string, listQuery: string): string 
   return `/candidates/${candidateId}?return=${encodeURIComponent(listQuery)}`;
 }
 
+export type DetailNotice = "registered" | "updated";
+
+/**
+ * Detail href after create/edit, preserving list `return` and carrying a one-shot
+ * success notice so feedback remains visible after client navigation.
+ */
+export function buildDetailHrefAfterSave(
+  candidateId: string,
+  options: {
+    returnQuery?: string | null;
+    notice: DetailNotice;
+  },
+): string {
+  const params = new URLSearchParams();
+  if (options.returnQuery) params.set("return", options.returnQuery);
+  params.set("notice", options.notice);
+  return `/candidates/${candidateId}?${params.toString()}`;
+}
+
 /** Resolve the list href from a detail page `return` query value. */
 export function listHrefFromReturnParam(returnQuery: string | null): string {
   if (returnQuery === null) return "/";

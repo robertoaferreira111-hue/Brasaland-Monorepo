@@ -89,11 +89,10 @@ export function CandidateList() {
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">
-            Candidate pipeline
+            Executive Assistant talent pipeline
           </h1>
           <p className="text-sm text-[var(--muted)]">
-            Active search for Executive Assistant · Corporate headquarters,
-            Medellín
+            Brasaland People &amp; Talent · Corporate headquarters, Medellín
           </p>
         </div>
         {asyncStatus === "success" && (
