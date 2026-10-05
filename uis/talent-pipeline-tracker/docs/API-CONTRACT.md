@@ -37,7 +37,27 @@ From OpenAPI parameter descriptions (verified live):
 | `stage` | Filter | Allowed values documented: `pending`, `review`, `personal_interview`, `technical_interview`, `offer_presented` |
 | `search` | Search | OpenAPI: "Search in full_name or email". Live: `search=michael` returned matching names. |
 | `page` | Pagination | Default `1`, minimum `1` |
-| `limit` | Pagination | Default `20`, minimum `1`, description says "no max limit" |
+| `limit` | Pagination | Default `20`, minimum `1`. OpenAPI description: **"no max limit"**. |
+
+### Server-side filtering and search (re-verified Phase 1)
+
+| Capability | Supported? | Evidence |
+| --- | --- | --- |
+| Filter by `status` | **Yes** (server-side) | `GET /records?status=in_progress&limit=1` → `200`, reduced `total`, sample status `in_progress` |
+| Filter by `stage` | **Yes** (server-side) | `GET /records?stage=pending&limit=3` → `200`, all returned stages were `pending` |
+| Search by name or email | **Yes** (server-side) | OpenAPI: "Search in full_name or email". Live `search=michael` returned matching names |
+
+### `limit` maximum and showing all candidates (Phase 1)
+
+- OpenAPI: default `20`, minimum `1`, description **"no max limit"**.
+- Live probes: `limit` of `20`, `100`, `200`, `500`, `1000`, `5000`, `10000`, and `100000` all returned `200`. Response `limit` echoed the requested value; `data.length` was `min(requestedLimit, total)` (currently `total === 100`).
+- `limit=0`, `limit=-1`, and non-integer `limit` → `422` validation error (`greater_than_equal` / `int_parsing`).
+- **No practical maximum was observed** in live probes; treat “no max limit” as accurate unless a future response contradicts it.
+
+**How to show all candidates**
+
+1. Prefer a first request with a high enough `limit` (for example `limit=100` or `limit=total` after reading `total` from a small page), **or**
+2. Paginate: request `page=1,2,…` with a fixed `limit` until `page * limit >= total` (or until a page returns fewer than `limit` items). Example verified: `limit=50&page=2` → `{ total: 100, page: 2, limit: 50, data.length: 50 }`.
 
 ### List response shape (live)
 
