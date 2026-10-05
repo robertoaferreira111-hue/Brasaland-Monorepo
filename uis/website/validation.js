@@ -1,16 +1,3 @@
-const CITIES = {
-  Colombia: ["Medellín", "Bogotá", "Cali"],
-  "United States": ["Miami", "Orlando"],
-}
-
-const LOCATIONS = {
-  Medellín: ["Brasaland El Poblado", "Brasaland Laureles", "Brasaland Envigado", "Brasaland Sabaneta"],
-  Bogotá: ["Brasaland Usaquén", "Brasaland Chapinero", "Brasaland Zona Rosa"],
-  Cali: ["Brasaland Granada", "Brasaland Ciudad Jardín", "Brasaland Unicentro"],
-  Miami: ["Brasaland Brickell", "Brasaland Coral Gables"],
-  Orlando: ["Brasaland Downtown", "Brasaland International Drive"],
-}
-
 const SOURCES = ["Social media", "Recommendation", "Walked by", "Internet search", "Other"]
 
 const ERRORS = {
@@ -18,7 +5,6 @@ const ERRORS = {
   email: "Enter a valid email (example: name@email.com)",
   phone: "Phone must include country code (example: +57 300 123 4567 or +1 305 123 4567)",
   country: "Select your country",
-  city: "Select your city",
   source: "Tell us how you found Brasaland",
   "date-of-birth": "You must be 18 or older to register for Brasa Points",
   "accept-terms": "You must accept the Brasa Points program terms to continue",
@@ -29,7 +15,6 @@ const FIELD_ORDER = [
   "email",
   "phone",
   "country",
-  "city",
   "source",
   "date-of-birth",
   "accept-terms",
@@ -44,7 +29,6 @@ function valueOf(id) {
 
 function messageFor(id) {
   const country = valueOf("country")
-  const city = valueOf("city")
 
   if (id === "full-name") {
     const words = String(valueOf(id)).trim().split(/\s+/).filter(Boolean)
@@ -66,11 +50,6 @@ function messageFor(id) {
 
   if (id === "country") {
     return country === "Colombia" || country === "United States" ? "" : ERRORS[id]
-  }
-
-  if (id === "city") {
-    const cities = CITIES[country] || []
-    return city && cities.includes(city) ? "" : ERRORS[id]
   }
 
   if (id === "source") {
@@ -123,36 +102,7 @@ function validateField(id) {
   return message
 }
 
-function fillSelect(select, placeholder, options, selected) {
-  select.replaceChildren()
-  const empty = document.createElement("option")
-  empty.value = ""
-  empty.textContent = placeholder
-  select.append(empty)
-  for (const option of options) {
-    const node = document.createElement("option")
-    node.value = option
-    node.textContent = option
-    select.append(node)
-  }
-  select.value = options.includes(selected) ? selected : ""
-}
-
-function syncCities() {
-  const country = valueOf("country")
-  const city = document.getElementById("city")
-  fillSelect(city, "Select your city", CITIES[country] || [], "")
-  syncLocations()
-}
-
-function syncLocations() {
-  const city = valueOf("city")
-  const favorite = document.getElementById("favorite-location")
-  fillSelect(favorite, "Select a location (optional)", LOCATIONS[city] || [], "")
-}
-
 let lastCountry = ""
-let lastCity = ""
 
 function validateAll() {
   let firstInvalid = ""
@@ -173,9 +123,7 @@ function resetForm() {
   const form = document.getElementById("loyalty-form")
   form.reset()
   lastCountry = ""
-  lastCity = ""
-  syncCities()
-  for (const id of [...FIELD_ORDER, "favorite-location"]) showError(id, "")
+  for (const id of FIELD_ORDER) showError(id, "")
   hideSuccess()
   document.getElementById("full-name").focus()
 }
@@ -186,25 +134,12 @@ function onLiveEvent(event) {
   if (field.id === "country") {
     const country = valueOf("country")
     if (country !== lastCountry) {
-      const hadCity = Boolean(valueOf("city"))
       const phoneError = document.getElementById("phone-error")
       const shouldCheckPhone = Boolean(String(valueOf("phone")).trim()) || Boolean(phoneError.textContent)
       lastCountry = country
-      lastCity = ""
-      syncCities()
-      if (hadCity) validateField("city")
       if (shouldCheckPhone) validateField("phone")
     }
     validateField("country")
-    return
-  }
-  if (field.id === "city") {
-    const city = valueOf("city")
-    if (city !== lastCity) {
-      lastCity = city
-      syncLocations()
-    }
-    validateField("city")
     return
   }
   validateField(field.id)
@@ -213,8 +148,6 @@ function onLiveEvent(event) {
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("loyalty-form")
   if (!form) return
-
-  syncCities()
 
   form.addEventListener("submit", (event) => {
     event.preventDefault()
