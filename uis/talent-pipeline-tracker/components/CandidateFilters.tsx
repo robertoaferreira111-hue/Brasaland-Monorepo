@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { STAGE_OPTIONS, STATUS_OPTIONS } from "@/lib/labels";
-import { rememberListQuery } from "@/lib/listNavigation";
 
 /**
  * Status / stage / search controls synced to URL query params (shareable, refresh-safe).
@@ -25,10 +24,6 @@ export function CandidateFilters() {
     setPreviousUrlSearch(searchFromUrl);
     setSearch(searchFromUrl);
   }
-
-  useEffect(() => {
-    rememberListQuery(searchParams.toString());
-  }, [searchParams]);
 
   const updateParams = useCallback(
     (next: {
@@ -56,7 +51,6 @@ export function CandidateFilters() {
       }
 
       const query = params.toString();
-      rememberListQuery(query);
       startTransition(() => {
         router.replace(query ? `${pathname}?${query}` : pathname, {
           scroll: false,

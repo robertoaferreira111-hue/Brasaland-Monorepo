@@ -8,7 +8,7 @@ import { StageBadge } from "@/components/StageBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAsync } from "@/hooks/useAsync";
 import { STAGE_OPTIONS, STATUS_OPTIONS } from "@/lib/labels";
-import { rememberListQuery } from "@/lib/listNavigation";
+import { buildDetailHref } from "@/lib/listNavigation";
 import { listCandidates } from "@/services/records";
 import type {
   CandidateListResult,
@@ -70,7 +70,6 @@ export function CandidateList() {
       if (nextPage <= 1) params.delete("page");
       else params.set("page", String(nextPage));
       const query = params.toString();
-      rememberListQuery(query);
       startTransition(() => {
         router.replace(query ? `${pathname}?${query}` : pathname, {
           scroll: false,
@@ -149,11 +148,10 @@ export function CandidateList() {
                   >
                     <td className="px-4 py-3">
                       <Link
-                        href={
-                          searchParams.toString()
-                            ? `/candidates/${candidate.id}?return=${encodeURIComponent(searchParams.toString())}`
-                            : `/candidates/${candidate.id}`
-                        }
+                        href={buildDetailHref(
+                          candidate.id,
+                          searchParams.toString(),
+                        )}
                         className="font-medium text-[var(--accent)] hover:underline"
                       >
                         {candidate.full_name}

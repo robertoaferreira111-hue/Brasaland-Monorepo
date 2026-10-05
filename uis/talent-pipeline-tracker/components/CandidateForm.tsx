@@ -3,21 +3,28 @@
 import { FormEvent, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { FeedbackBanner } from "@/components/FeedbackBanner";
-import { createRecord, updateRecord } from "@/lib/api";
 import {
+  fieldErrorsFromApiError,
   hasFormErrors,
   toCandidatePayload,
   validateCandidateForm,
   type FormErrors,
 } from "@/lib/validation";
-import type { Candidate, CandidateCreate } from "@/types/candidate";
+import { createCandidate, updateCandidate } from "@/services/records";
+import type {
+  CandidateCreatePayload,
+  CandidateRecord,
+} from "@/types/api";
+import { ApiError } from "@/types/api";
 
 type CandidateFormProps = {
   mode: "create" | "edit";
-  initialValues?: Candidate;
+  initialValues?: CandidateRecord;
+  /** Preserved list query for post-create/edit navigation back through detail. */
+  returnQuery?: string | null;
 };
 
-const emptyValues: CandidateCreate = {
+const emptyValues: CandidateCreatePayload = {
   full_name: "",
   email: "",
   phone: "",
@@ -27,9 +34,18 @@ const emptyValues: CandidateCreate = {
   cv_url: "",
 };
 
-export function CandidateForm({ mode, initialValues }: CandidateFormProps) {
+function detailHref(id: string, returnQuery?: string | null): string {
+  if (!returnQuery) return `/candidates/${id}`;
+  return `/candidates/${id}?return=${encodeURIComponent(returnQuery)}`;
+}
+
+export function CandidateForm({
+  mode,
+  initialValues,
+  returnQuery = null,
+}: CandidateFormProps) {
   const router = useRouter();
-  const [values, setValues] = useState<CandidateCreate>(() =>
+  const [values, setValues] = useState<CandidateCreatePayload>(() =>
     initialValues
       ? {
           full_name: initialValues.full_name,
@@ -47,15 +63,16 @@ export function CandidateForm({ mode, initialValues }: CandidateFormProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function updateField<K extends keyof CandidateCreate>(
+  function updateField<K extends keyof CandidateCreatePayload>(
     key: K,
-    value: CandidateCreate[K],
+    value: CandidateCreatePayload[K],
   ) {
     setValues((current) => ({ ...current, [key]: value }));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting) return;
     setSuccess(null);
     setError(null);
 
@@ -70,22 +87,30 @@ export function CandidateForm({ mode, initialValues }: CandidateFormProps) {
     setSubmitting(true);
     try {
       if (mode === "create") {
-        const created = await createRecord(payload);
+        const created = await createCandidate(payload);
         setSuccess("Candidate registered successfully.");
-        router.push(`/candidates/${created.id}`);
+        router.push(detailHref(created.id, returnQuery));
       } else if (initialValues) {
-        const updated = await updateRecord(initialValues.id, payload);
+        const updated = await updateCandidate(initialValues.id, payload);
         setSuccess("Candidate updated successfully.");
-        router.push(`/candidates/${updated.id}`);
+        router.push(detailHref(updated.id, returnQuery));
       }
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : mode === "create"
-            ? "Failed to register candidate."
-            : "Failed to update candidate.",
-      );
+      const apiFieldErrors = fieldErrorsFromApiError(err);
+      if (hasFormErrors(apiFieldErrors)) {
+        setErrors(apiFieldErrors);
+        setError("Please fix the highlighted fields before submitting.");
+      } else {
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : mode === "create"
+                ? "Failed to register candidate."
+                : "Failed to update candidate.",
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -96,14 +121,11 @@ export function CandidateForm({ mode, initialValues }: CandidateFormProps) {
       {error && <FeedbackBanner tone="error" message={error} />}
       {success && <FeedbackBanner tone="success" message={success} />}
 
-      <Field
-        label="Full name"
-        error={errors.full_name}
-        required
-      >
+      <Field label="Full name" error={errors.full_name} required>
         <input
           value={values.full_name}
           onChange={(event) => updateField("full_name", event.target.value)}
+          disabled={submitting}
           className={inputClass(Boolean(errors.full_name))}
         />
       </Field>
@@ -113,6 +135,7 @@ export function CandidateForm({ mode, initialValues }: CandidateFormProps) {
           type="email"
           value={values.email}
           onChange={(event) => updateField("email", event.target.value)}
+          disabled={submitting}
           className={inputClass(Boolean(errors.email))}
         />
       </Field>
@@ -121,6 +144,7 @@ export function CandidateForm({ mode, initialValues }: CandidateFormProps) {
         <input
           value={values.phone}
           onChange={(event) => updateField("phone", event.target.value)}
+          disabled={submitting}
           className={inputClass(Boolean(errors.phone))}
         />
       </Field>
@@ -129,6 +153,7 @@ export function CandidateForm({ mode, initialValues }: CandidateFormProps) {
         <input
           value={values.position}
           onChange={(event) => updateField("position", event.target.value)}
+          disabled={submitting}
           className={inputClass(Boolean(errors.position))}
         />
       </Field>
@@ -146,6 +171,7 @@ export function CandidateForm({ mode, initialValues }: CandidateFormProps) {
           onChange={(event) =>
             updateField("experience_years", Number(event.target.value))
           }
+          disabled={submitting}
           className={inputClass(Boolean(errors.experience_years))}
         />
       </Field>
@@ -155,6 +181,7 @@ export function CandidateForm({ mode, initialValues }: CandidateFormProps) {
           type="url"
           value={values.linkedin_url ?? ""}
           onChange={(event) => updateField("linkedin_url", event.target.value)}
+          disabled={submitting}
           className={inputClass(Boolean(errors.linkedin_url))}
           placeholder="https://linkedin.com/in/…"
         />
@@ -165,6 +192,7 @@ export function CandidateForm({ mode, initialValues }: CandidateFormProps) {
           type="url"
           value={values.cv_url ?? ""}
           onChange={(event) => updateField("cv_url", event.target.value)}
+          disabled={submitting}
           className={inputClass(Boolean(errors.cv_url))}
           placeholder="https://…"
         />
@@ -187,7 +215,8 @@ export function CandidateForm({ mode, initialValues }: CandidateFormProps) {
         <button
           type="button"
           onClick={() => router.back()}
-          className="rounded-md border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--ink)]"
+          disabled={submitting}
+          className="rounded-md border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--ink)] disabled:opacity-60"
         >
           Cancel
         </button>
@@ -220,9 +249,7 @@ function Field({
 }
 
 function inputClass(hasError: boolean): string {
-  return `rounded-md border px-3 py-2 text-[var(--ink)] outline-none ring-[var(--accent)] focus:ring-2 ${
-    hasError
-      ? "border-red-400 bg-red-50"
-      : "border-[var(--border)] bg-white"
+  return `rounded-md border px-3 py-2 text-[var(--ink)] outline-none ring-[var(--accent)] focus:ring-2 disabled:opacity-60 ${
+    hasError ? "border-red-400 bg-red-50" : "border-[var(--border)] bg-white"
   }`;
 }

@@ -1,28 +1,18 @@
-import { ApiError } from "@/types/api";
+/**
+ * List ↔ detail return navigation.
+ * Authoritative mechanism: the `return` query param on detail URLs
+ * (e.g. `/candidates/:id?return=status%3Dreceived%26page%3D2`).
+ * sessionStorage is not used.
+ */
 
-const LIST_QUERY_KEY = "tpt-list-query";
-export const LIST_QUERY_EVENT = "tpt-list-query";
-
-/** Remember the candidate list query string so detail "back" links can restore it. */
-export function rememberListQuery(query: string): void {
-  if (typeof window === "undefined") return;
-  sessionStorage.setItem(LIST_QUERY_KEY, query);
-  window.dispatchEvent(new Event(LIST_QUERY_EVENT));
+/** Build a detail href that carries the current list query for later restoration. */
+export function buildDetailHref(candidateId: string, listQuery: string): string {
+  if (!listQuery) return `/candidates/${candidateId}`;
+  return `/candidates/${candidateId}?return=${encodeURIComponent(listQuery)}`;
 }
 
-/** Build `/` or `/?status=…` from the last remembered list query. */
-export function getListHref(): string {
-  if (typeof window === "undefined") return "/";
-  const query = sessionStorage.getItem(LIST_QUERY_KEY);
-  return query ? `/?${query}` : "/";
-}
-
-export function subscribeListHref(onStoreChange: () => void): () => void {
-  if (typeof window === "undefined") return () => undefined;
-  window.addEventListener(LIST_QUERY_EVENT, onStoreChange);
-  return () => window.removeEventListener(LIST_QUERY_EVENT, onStoreChange);
-}
-
-export function isNotFoundError(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 404;
+/** Resolve the list href from a detail page `return` query value. */
+export function listHrefFromReturnParam(returnQuery: string | null): string {
+  if (returnQuery === null) return "/";
+  return returnQuery ? `/?${returnQuery}` : "/";
 }
