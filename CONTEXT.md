@@ -1,212 +1,129 @@
-# CONTEXT.md — Brasaland
+# Welcome to Brasaland
 
-## Milestone 1: Your Company's Public Website
+## AI Engineering · 4Geeks Academy — Company Briefing
 
-_Estas instrucciones están disponibles en español._
+---
 
-This document describes your company and the specific situation you're building this milestone for. Read it completely before writing any code. Everything you build must reflect this context.
+Brasaland is a grilled food restaurant chain founded in 2008 in Medellín, Colombia. What began as a single family-run location has grown, over fifteen years, into a chain of 14 company-owned restaurants operating across two countries: Colombia and the United States (Florida). The company employs approximately 115 people and generates around 6 million dollars in annual revenue.
 
-## Your company
+The brand has always stood for three things: food that tastes the same whether you order it in Medellín or Miami, a service experience that feels warm and consistent, and a kitchen that moves fast. Those three commitments are what built the business — and they are also what make running it increasingly difficult without the right tools.
 
-Brasaland is a grilled food restaurant chain founded in 2008 in Medellín, Colombia. What began as a single family-run location has grown into a chain of 14 company-owned restaurants operating in Colombia and the United States (Florida). The company employs approximately 115 people between kitchen and floor staff, operations management, and the corporate team headquartered in Medellín with a commercial office in Miami. Annual revenue sits around 6 million dollars. The brand is built on three pillars: consistent product quality across every location, a warm and reliable customer experience, and speed of service.
+## How the company is organised
 
-## Your department and the problem you must solve
+Brasaland is run from its headquarters in Medellín. There is a commercial and operations office in Miami that coordinates the Florida locations. The company is led by **Mariana Restrepo**, daughter of the founder and CEO since 2019. She brought the business to the US market and is now focused on building the internal systems that will allow it to keep growing without losing what makes it good.
 
-You work in Brasaland Digital, the internal team created by CEO Mariana Restrepo to lead the company's digital transformation, and you report directly to CTO Nicolás Park. Brasaland's current corporate website is from 2019, doesn't allow online orders, and only shows the menu. It doesn't reflect that the company operates in two countries or properly present the brand experience. Camila Ospina (Marketing Manager) needs a renewed website that professionally presents the brand, shows locations in both countries, and captures information from people interested in joining the digital loyalty program.
+The company is organised around the following areas:
 
-## Your stakeholder
+**Restaurant Operations** is the heart of the business. Felipe Guerrero leads a team of supervisors who oversee the 14 locations across both countries. Every day, each location runs its own kitchen, manages its own staff, and handles its own supply orders — largely without visibility from headquarters.
 
-Camila Ospina, Marketing Manager
+**Procurement and Suppliers** handles the relationships with the roughly 20 suppliers that provide everything from meat and vegetables to packaging and cleaning products. Lucía Fernández manages this function, negotiating separately in each market without consolidated data on what the chain is actually spending.
 
-Hi,
+**Marketing and Digital Experience** is responsible for how Brasaland presents itself to customers — the website, social media, the loyalty programme, and campaigns. Camila Ospina leads the team. The brand exists in two very different cultural markets, and right now there is almost no data about who Brasaland's customers actually are.
 
-We need to relaunch our corporate website. It should present Brasaland as what we are: a serious grilled food restaurant chain with presence in Colombia and the United States. I want a landing page that explains our value proposition, shows our locations in both countries, and presents our new digital loyalty program "Brasa Points." I also need a page with a form so people can register for the loyalty program. We currently use physical stamp cards that get lost and generate no data. I want to capture: name, email, phone, country, city, favorite location, dietary preferences, and how they found us. The site must be responsive, accessible, and SEO optimized. Multilingual support (Spanish and English) is optional but highly recommended; start with one base language. Use Tailwind and make sure the validations work perfectly.
+**People and Culture** manages everything related to the 115 people who work across the 14 locations: contracts, schedules, onboarding, and day-to-day HR. Ashley Turner leads this function from Miami and deals daily with the complexity of two very different labour markets.
 
-## Language scope
+**Training and Quality Standards** is where Jake Morrison works to ensure that a Brasaland burger is prepared and presented the same way in every kitchen. Training materials exist, but they are hard to access and harder to keep up to date across two countries.
 
-Multilingual support is optional but highly recommended given Brasaland's operations in Colombia and the United States.
+**Technology** is led by CTO Nicolás Park, who is based in Medellín and manages a small team. The current technology stack is minimal: a static website, an outdated app, different point-of-sale systems in each country, and a collection of spreadsheets that have been doing the work of proper management systems for years.
 
-You must choose one base language for the full website and form experience.
+**Executive Leadership** sits with Mariana, who currently makes most strategic decisions based on phone calls, weekly PDF reports that arrive on Tuesday mornings, and her own experience of the business.
 
-If you implement a second language, treat it as an enhancement (do not reduce quality/completeness in the base language).
+## Where the company stands today
 
-## Landing page content
+Brasaland is profitable and has a loyal customer base in both markets. But it is managing a two-country operation using tools built for a single local restaurant. The consequences are visible: ingredient orders placed by WhatsApp with no inventory data behind them, a loyalty programme that runs on physical stamp cards that customers constantly lose, no real-time visibility into what is happening at any given location, and a leadership team that cannot answer basic business questions without making phone calls.
 
-Your landing page must include the following sections, in this order:
+Meanwhile, competitors — including newer, smaller chains — are gaining ground with digital ordering, data-driven marketing, and operational dashboards that let their managers act on information instead of instinct.
 
-### Header
+Mariana has created an internal team called **Brasaland Digital** to change this. The mandate is to build the tools, systems, and automations that will let Brasaland operate like a modern company without losing the soul of what it has always been.
 
-- Logo or name "Brasaland"
-- Language selector (ES | EN) if you implement a second language
-- Navigation: Home | Locations | Menu | Brasa Points | Contact
+**You are part of that team.**
 
-### Hero
+---
 
-- Headline: "The taste of the grill, in every bite"
-- Subheadline: "Since 2008 serving the best grilled meats in Colombia and the United States. 14 locations, one passion for quality and flavor."
-- Call to action: Button "Join Brasa Points" linking to the form
+## The Departments and Their Problems
 
-### Our Story (paragraph + image)
+### 🍖 Restaurant Operations
 
-Founded in Medellín in 2008, Brasaland began as a family dream: sharing the authentic taste of grilled meat with consistent quality and warm service. Today we are 14 restaurants in two countries, but we maintain the same recipe for success: fresh products, traditional techniques, and passion for every dish we serve.
+**Director:** Felipe Guerrero
 
-### What Makes Us Unique (3 columns)
+Each of the 14 locations operates largely in isolation. There is no centralised visibility: Felipe doesn't know in real time how many covers were served today at the Medellín downtown location or whether the Miami restaurant is having a slow week. Ingredient orders are placed by WhatsApp or phone, resulting in overstock in some locations and stockouts in others. Shift reports are filled out on paper or Excel and sent to HR weekly.
 
-**Consistent Quality**
+**What they need:** Real-time sales dashboard per location (in COP and USD), an intelligent ingredient ordering system based on historical sales and current stock, and automated alerts when a location shows no sales during opening hours.
 
-- Same recipes and standards in all locations
-- Fresh ingredients selected daily
+---
 
-**Warm Experience**
+### 🛒 Procurement and Suppliers
 
-- Friendly and attentive service
-- Family atmosphere on every visit
+**Manager:** Lucía Fernández
 
-**Speed**
+Brasaland works with around 20 suppliers split between Colombia and Florida — meat, vegetables, sauces, beverages, packaging, cleaning products. Price negotiation happens by email and Excel. Lucía finds out about raw material price changes when the invoice arrives. There is no consolidated purchasing data across the chain.
 
-- Your food ready in minutes
-- Without sacrificing flavor or quality
+**What they need:** A supplier management platform with price history and alerts, and consolidated purchasing visibility to enable central negotiations across both markets.
 
-### Our Locations (2 columns)
+---
 
-**Colombia**
+### 📱 Marketing and Digital Experience
 
-- 10 restaurants in Medellín, Bogotá and Cali
-- Hours: Mon-Sun 11:00 AM - 10:00 PM
+**Manager:** Camila Ospina
 
-**United States (Florida)**
+The Brasaland website is from 2019, accepts no online orders, and has a 2.8 app store rating. The loyalty programme ("Brasa Points") runs on physical stamp cards — 60% of customers don't use them, and the cards generate no data. There is no information about who Brasaland's customers actually are.
 
-- 4 restaurants in Miami and Orlando
-- Hours: Mon-Sun 11:00 AM - 10:00 PM
+**What they need:** A digital loyalty and ordering app, a customer CRM with order history and preferences, and a personalisation engine that suggests relevant products based on behaviour.
 
-### Brasa Points (featured section)
+---
 
-- Earn points with every visit
-- Accumulate 1 point for every $10,000 COP or $5 USD
-- Redeem your points for discounts and free dishes
-- Exclusive offers for members
-- 100% digital registration - no more paper cards!
+### 🧑‍🤝‍🧑 People and Culture
 
-### Contact
+**Manager:** Ashley Turner (Miami)
 
-- Email: hello@brasaland.com
-- Colombia: +57 4 123 4567
-- Florida: +1 305 123 4567
+Managing 115 people across 14 locations in two countries with very different labour laws creates significant administrative overhead. Most HR processes run by email and Excel. Onboarding new kitchen staff — who turn over frequently — is entirely manual.
 
-### Footer
+**What they need:** An internal HR portal for holiday requests and absence management, an automated onboarding flow, and an HR KPI dashboard tracking turnover, absenteeism, and vacancy fill times — segmented by country.
 
-- © 2025 Brasaland. All rights reserved.
-- Instagram | Facebook
+---
 
-## Brasa Points registration form fields
-
-Your form must capture the following information:
-
-| Field | Type | Validation | Required |
-| --- | --- | --- | --- |
-| Full name | text | Minimum 2 words | Yes |
-| Email | email | Valid email format | Yes |
-| Phone | tel | Format: +[country code] [number] | Yes |
-| Country | select | Colombia / United States | Yes |
-| City | select | Medellín / Bogotá / Cali / Miami / Orlando (per country) | Yes |
-| Favorite Brasaland location | select | List of 14 restaurants per country and city | No |
-| Dietary preferences | checkbox | No restrictions / Vegetarian / Gluten-free / Other | No |
-| How did you find us? | select | Social media / Recommendation / Walked by / Internet search / Other | Yes |
-| Date of birth | date | Must be 18 or older | Yes |
-| I accept program terms | checkbox | Must be checked to submit | Yes |
-| I want to receive offers via email | checkbox | Optional, unchecked by default | No |
-
-### Specific validations
-
-- Full name: Must contain at least first and last name
-- Email: Must be valid format (contain @ and domain)
-- Phone: Must start with + followed by country code (+57 for Colombia, +1 for USA)
-- City: City options must change dynamically based on selected country
-- Favorite location: Options must filter based on selected country and city
-- Date of birth: User must be 18 or older (validate date)
-- Program terms: Checkbox must be checked to submit
-
-### Dependent field logic
-
-Country → City:
-
-- If selecting "Colombia": show Medellín, Bogotá, Cali
-- If selecting "United States": show Miami, Orlando
-
-Country + City → Favorite location:
-
-- Colombia - Medellín: Brasaland El Poblado, Brasaland Laureles, Brasaland Envigado, Brasaland Sabaneta
-- Colombia - Bogotá: Brasaland Usaquén, Brasaland Chapinero, Brasaland Zona Rosa
-- Colombia - Cali: Brasaland Granada, Brasaland Ciudad Jardín, Brasaland Unicentro
-- USA - Miami: Brasaland Brickell, Brasaland Coral Gables
-- USA - Orlando: Brasaland Downtown, Brasaland International Drive
-
-### Expected error messages
-
-When a field doesn't meet validation, display these specific messages:
-
-- Full name: "Enter your full name (first and last name)"
-- Email: "Enter a valid email (example: name@email.com)"
-- Phone: "Phone must include country code (example: +57 300 123 4567 or +1 305 123 4567)"
-- Country: "Select your country"
-- City: "Select your city"
-- How did you find us: "Tell us how you found Brasaland"
-- Date of birth: "You must be 18 or older to register for Brasa Points"
-- Program terms: "You must accept the Brasa Points program terms to continue"
-
-### Success message
-
-When the form validates correctly (simulate submission), display:
-
-Welcome to Brasa Points!
-
-Your registration was successful. You will receive a confirmation email in the next few minutes with your account details and how to start earning points.
-
-You can now enjoy your benefits at any of our 14 locations!
-
-## Specific restriction
-
-The Brasa Points program is designed for customers 18 or older who want to earn points with their visits. It is not a reservation or online ordering form. The site must include a visible message that says: "Want to place an order? Call your favorite location or visit us directly. Online ordering coming soon!"
-
-## Required Schema.org markup
-
-Implement the following Schema.org markup on your landing page:
-
-If you deliver only one language, set availableLanguage to just that base language.
-
-```json
-{
-  "@context": "https://schema.org",
-  "@type": "Restaurant",
-  "name": "Brasaland",
-  "description": "Grilled food restaurant chain in Colombia and the United States",
-  "url": "https://brasaland.com",
-  "foundingDate": "2008",
-  "servesCuisine": "Grilled food, Colombian cuisine",
-  "priceRange": "$$",
-  "address": [
-    {
-      "@type": "PostalAddress",
-      "addressCountry": "CO",
-      "addressLocality": "Medellín",
-      "addressRegion": "Antioquia"
-    },
-    {
-      "@type": "PostalAddress",
-      "addressCountry": "US",
-      "addressLocality": "Miami",
-      "addressRegion": "FL"
-    }
-  ],
-  "contactPoint": {
-    "@type": "ContactPoint",
-    "telephone": "+57-4-123-4567",
-    "contactType": "customer service",
-    "availableLanguage": ["Spanish", "English"]
-  },
-  "sameAs": [
-    "https://instagram.com/brasaland",
-    "https://facebook.com/brasaland"
-  ]
-}
-```
+### 🎓 Training and Quality Standards
+
+**Manager:** Jake Morrison (Miami)
+
+Every location must follow the same recipes, preparation techniques, and presentation standards regardless of country. Training materials are stored in a shared Google Drive that nobody can navigate. When a recipe or procedure changes, communicating the update to all 14 locations in two languages takes days and often creates confusion.
+
+**What they need:** A training platform with a searchable recipe catalogue, a structured onboarding path for new staff, and a system that pushes recipe updates to all locations simultaneously. Multilingual support (Spanish and English) is optional but highly recommended, starting from one base language.
+
+---
+
+### 💻 Technology
+
+**CTO:** Nicolás Park (Medellín)
+
+Brasaland's current tech stack is minimal: a static website, an outdated app, a different POS terminal in each country with no integration, and spreadsheets acting as management systems. There is no internal API, no consolidated data, and no telemetry. Nicolás has the mandate to build Brasaland's digital platform from near-zero.
+
+**What they need:** A Brasaland central API covering locations, menus, sales, customers, and suppliers; real-time telemetry from each location; and a data pipeline feeding the operations, marketing, and finance dashboards.
+
+---
+
+### 📊 Executive Direction
+
+**CEO:** Mariana Restrepo
+
+Mariana manages a 14-location chain across two markets without a unified dashboard. Her decisions are based on calls with the operations team, PDF reports that arrive on Tuesday, and intuition. She cannot answer in real time: "how much did we sell this week in Florida?" or "which location has the highest average ticket this month?"
+
+**What she needs:** An executive dashboard with total chain sales in USD and COP, an AI assistant she can query in natural language, and an automated weekly report generated and sent every Monday at 7am.
+
+---
+
+## Why Choose Brasaland?
+
+Choose Brasaland if you are drawn to:
+
+- **Consumer-facing products** — a loyalty app, a corporate website, a customer CRM — built for real people who eat at restaurants.
+- **Multi-market complexity** — building systems that work simultaneously in two countries, two currencies, and two languages.
+- **Operations at scale** — 14 physical locations generating data that needs to be captured, unified, and surfaced in real time.
+- **A domain that is universally relatable** — everyone understands what a restaurant does, which makes it easier to focus on the engineering.
+
+The AI challenges at Brasaland range from ingredient demand forecasting and menu personalisation to multilingual support agents and real-time sales telemetry. If you want to build systems that a non-technical business owner will immediately understand the value of, Brasaland is your company.
+
+---
+
+_Internal document — 4Geeks Academy · AI Engineering Track_
+_For exclusive use in programme project generation_
