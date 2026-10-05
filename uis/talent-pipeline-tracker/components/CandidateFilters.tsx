@@ -4,6 +4,10 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { STAGE_OPTIONS, STATUS_OPTIONS } from "@/lib/labels";
 
+/**
+ * Status / stage / search controls synced to URL query params (shareable, refresh-safe).
+ * Search is debounced locally before writing to the URL. Changing filters resets `page`.
+ */
 export function CandidateFilters() {
   const router = useRouter();
   const pathname = usePathname();
@@ -22,7 +26,13 @@ export function CandidateFilters() {
   }
 
   const updateParams = useCallback(
-    (next: { status?: string; stage?: string; search?: string }) => {
+    (next: {
+      status?: string;
+      stage?: string;
+      search?: string;
+      page?: string;
+      resetPage?: boolean;
+    }) => {
       const params = new URLSearchParams(searchParams.toString());
 
       (["status", "stage", "search"] as const).forEach((key) => {
@@ -31,6 +41,14 @@ export function CandidateFilters() {
         if (value) params.set(key, value);
         else params.delete(key);
       });
+
+      if (next.page !== undefined) {
+        const pageValue = next.page.trim();
+        if (pageValue && pageValue !== "1") params.set("page", pageValue);
+        else params.delete("page");
+      } else if (next.resetPage) {
+        params.delete("page");
+      }
 
       const query = params.toString();
       startTransition(() => {
@@ -45,7 +63,7 @@ export function CandidateFilters() {
   useEffect(() => {
     const handle = window.setTimeout(() => {
       if (search === searchFromUrl) return;
-      updateParams({ search });
+      updateParams({ search, resetPage: true });
     }, 300);
     return () => window.clearTimeout(handle);
   }, [search, searchFromUrl, updateParams]);
@@ -67,7 +85,9 @@ export function CandidateFilters() {
         <span className="font-medium text-[var(--ink)]">Status</span>
         <select
           value={status}
-          onChange={(event) => updateParams({ status: event.target.value })}
+          onChange={(event) =>
+            updateParams({ status: event.target.value, resetPage: true })
+          }
           className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[var(--ink)] outline-none ring-[var(--accent)] focus:ring-2"
         >
           <option value="">All statuses</option>
@@ -83,7 +103,9 @@ export function CandidateFilters() {
         <span className="font-medium text-[var(--ink)]">Stage</span>
         <select
           value={stage}
-          onChange={(event) => updateParams({ stage: event.target.value })}
+          onChange={(event) =>
+            updateParams({ stage: event.target.value, resetPage: true })
+          }
           className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[var(--ink)] outline-none ring-[var(--accent)] focus:ring-2"
         >
           <option value="">All stages</option>
