@@ -23,4 +23,15 @@ npx http-server . -p 3000 -a 0.0.0.0
 
 Detalle en [website/README.md](./website/README.md).
 
+## `backoffice` — directorio de proveedores
+
+Directorio de compras del hito 09. HTML, CSS y JavaScript estáticos. Llama a la API de proveedores en `services/api`. La navegación del sitio público no cambia.
+
+```bash
+cd uis/backoffice
+npx http-server . -p 3001 -a 0.0.0.0
+```
+
+Detalle en [backoffice/README.md](./backoffice/README.md).
+
 > _These instructions are also available in [English](./README.md)._

@@ -1,3 +1,6 @@
 node_modules/
 dist/
 .DS_Store
+services/api/.venv/
+services/api/.pytest_cache/
+services/api/data/*.json

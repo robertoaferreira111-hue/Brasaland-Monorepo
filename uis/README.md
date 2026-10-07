@@ -23,4 +23,15 @@ npx http-server . -p 3000 -a 0.0.0.0
 
 See [website/README.md](./website/README.md).
 
+## `backoffice` — supplier directory
+
+Milestone 09 procurement directory. Static HTML, CSS, and JavaScript. It calls the supplier API in `services/api`. The public website navigation is unchanged.
+
+```bash
+cd uis/backoffice
+npx http-server . -p 3001 -a 0.0.0.0
+```
+
+See [backoffice/README.md](./backoffice/README.md).
+
 > _Estas instrucciones también están disponibles en [español](./README.es.md)._
