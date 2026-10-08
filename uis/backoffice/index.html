@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brasaland | Supplier directory</title>
+    <meta
+      name="description"
+      content="Internal supplier directory for Brasaland procurement."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="header-bar">
+        <a class="brand" href="index.html">Brasaland</a>
+        <button
+          id="nav-toggle"
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+        >
+          Open navigation
+        </button>
+      </div>
+      <nav id="site-nav" class="site-nav" aria-label="Primary">
+        <a href="index.html" aria-current="page">Supplier directory</a>
+      </nav>
+    </header>
+    <main id="main" tabindex="-1">
+      <header class="page-intro">
+        <h1>Supplier directory</h1>
+        <p>
+          Procurement list for Lucía Fernández. Active and suspended suppliers
+          stay in this directory. Rates and status are saved through the supplier API.
+        </p>
+      </header>
+
+      <section class="panel" aria-labelledby="filters-heading">
+        <h2 id="filters-heading">Filters</h2>
+        <form id="filters" class="filters">
+          <label>
+            Country
+            <select id="filter-country" name="country"></select>
+          </label>
+          <label>
+            Category
+            <select id="filter-category" name="category"></select>
+          </label>
+          <label>
+            Status
+            <select id="filter-status" name="status"></select>
+          </label>
+        </form>
+      </section>
+
+      <p id="list-status" class="status-line" role="status"></p>
+      <p id="list-error" class="message message-error" role="alert" hidden></p>
+      <p id="empty-state" class="message" hidden>No suppliers match these filters.</p>
+      <div id="table-wrap" class="table-wrap" hidden>
+        <table>
+          <caption class="sr-only">
+            Brasaland suppliers
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">name</th>
+              <th scope="col">country</th>
+              <th scope="col">categories</th>
+              <th scope="col">rate_per_unit</th>
+              <th scope="col">currency</th>
+              <th scope="col">status</th>
+              <th scope="col">contact_email</th>
+              <th scope="col">notes</th>
+              <th scope="col">updated_at</th>
+            </tr>
+          </thead>
+          <tbody id="supplier-rows"></tbody>
+        </table>
+      </div>
+
+      <section class="panel" aria-labelledby="register-heading">
+        <h2 id="register-heading">Register a supplier</h2>
+        <form id="register-form" class="register-form" novalidate>
+          <label>
+            Supplier trade name
+            <input name="name" autocomplete="organization" required />
+          </label>
+          <label>
+            Operating country
+            <select id="register-country" name="country" required></select>
+          </label>
+          <fieldset>
+            <legend>Product categories</legend>
+            <div id="category-choices" class="choices"></div>
+          </fieldset>
+          <label>
+            Current rate per unit
+            <input name="rate_per_unit" type="number" step="any" required />
+          </label>
+          <label>
+            Currency
+            <input id="register-currency" name="currency" readonly />
+          </label>
+          <label>
+            Status
+            <select id="register-status" name="status" required></select>
+          </label>
+          <label>
+            Supplier contact email
+            <input name="contact_email" type="text" autocomplete="email" />
+          </label>
+          <label class="span-2">
+            Internal procurement team notes
+            <textarea name="notes" rows="3"></textarea>
+          </label>
+          <div class="form-actions span-2">
+            <button id="register-submit" type="submit">Register supplier</button>
+          </div>
+        </form>
+        <p id="form-error" class="message message-error" role="alert" hidden></p>
+        <p id="form-success" class="message message-success" role="status" hidden></p>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <p>© 2025 Brasaland. All rights reserved.</p>
+    </footer>
+    <script src="app.js"></script>
+  </body>
+</html>
