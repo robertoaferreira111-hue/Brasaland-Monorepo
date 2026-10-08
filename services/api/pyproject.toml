@@ -1,0 +1,32 @@
+[project]
+name = "brasaland-auth-api"
+version = "0.1.0"
+description = "Brasaland staff JWT auth API for backoffice"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "pydantic>=2",
+    "pyjwt>=2.9",
+    "tinydb>=4",
+    "uvicorn>=0.32",
+]
+
+[project.scripts]
+seed = "app.seed:main"
+
+[dependency-groups]
+dev = ["httpx>=0.27", "pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.uv]
+default-groups = ["dev"]

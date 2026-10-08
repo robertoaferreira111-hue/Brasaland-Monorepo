@@ -23,4 +23,26 @@ npx http-server . -p 3000 -a 0.0.0.0
 
 See [website/README.md](./website/README.md).
 
+## `backoffice` — Brasaland staff app
+
+Next.js app for staff sign-in. It does not change the public website.
+
+```bash
+cd uis/backoffice
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:3001`. `/login` and `/register` are public. `/account` redirects to `/login` when `localStorage` has no JWT. The API URL defaults to `http://127.0.0.1:8000` (`NEXT_PUBLIC_API_URL`).
+
+Start the matching API first (from repo root):
+
+```bash
+cd services/api && uv sync && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Then run the backoffice (`npm run dev` on port 3001). The public `website` app does not use this API.
+
+See [backoffice/README.md](./backoffice/README.md).
+
 > _Estas instrucciones también están disponibles en [español](./README.es.md)._

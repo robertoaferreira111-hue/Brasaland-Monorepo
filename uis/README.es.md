@@ -23,4 +23,18 @@ npx http-server . -p 3000 -a 0.0.0.0
 
 Detalle en [website/README.md](./website/README.md).
 
+## `backoffice` — aplicación del personal
+
+Aplicación Next.js para el inicio de sesión del personal. No modifica el sitio público.
+
+```bash
+cd uis/backoffice
+npm install
+npm run dev
+```
+
+Abre `http://127.0.0.1:3001`. `/login` y `/register` son públicas. `/account` redirige a `/login` si no hay un JWT en `localStorage`. La URL de la API es `http://127.0.0.1:8000` por defecto (`NEXT_PUBLIC_API_URL`).
+
+Detalle en [backoffice/README.md](./backoffice/README.md).
+
 > _These instructions are also available in [English](./README.md)._
