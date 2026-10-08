@@ -57,7 +57,14 @@
       </section>
 
       <p id="list-status" class="status-line" role="status"></p>
-      <p id="list-error" class="message message-error" role="alert" hidden></p>
+      <div id="list-error-panel" class="error-panel" hidden>
+        <p id="list-error" class="message message-error" role="alert"></p>
+        <div class="error-actions">
+          <button id="list-retry" type="button">Try again</button>
+          <a class="text-link" href="index.html">Back to home</a>
+          <p class="recovery-hint">If this keeps happening, contact support.</p>
+        </div>
+      </div>
       <p id="empty-state" class="message" hidden>No suppliers match these filters.</p>
       <div id="table-wrap" class="table-wrap" hidden>
         <table>
@@ -121,12 +128,17 @@
           </div>
         </form>
         <p id="form-error" class="message message-error" role="alert" hidden></p>
+        <div id="form-error-actions" class="error-actions" hidden>
+          <button id="form-retry" type="button" class="button-secondary">Try again</button>
+          <a class="text-link" href="index.html">Back to home</a>
+          <p class="recovery-hint">If this keeps happening, contact support.</p>
+        </div>
         <p id="form-success" class="message message-success" role="status" hidden></p>
       </section>
     </main>
     <footer class="site-footer">
       <p>© 2025 Brasaland. All rights reserved.</p>
     </footer>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

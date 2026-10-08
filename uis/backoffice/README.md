@@ -2,6 +2,14 @@
 
 Internal procurement directory for Lucía Fernández. Static HTML, CSS, and JavaScript. Records come from the FastAPI app in `services/api`. Field names, categories, and statuses come from `Supplier-Directory-CONTEXT.md`.
 
+## Tests
+
+From this folder:
+
+```bash
+node --test tests/supplierErrors.test.mjs tests/supplierRequests.test.mjs tests/apiErrorContract.test.mjs
+```
+
 ## Run
 
 Start the API from `services/api`:

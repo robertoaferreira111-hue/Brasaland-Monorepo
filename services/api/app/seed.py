@@ -1,9 +1,15 @@
 """Load the Brasaland supplier spreadsheet into TinyDB without duplicating rows."""
 
+from __future__ import annotations
+
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from app.database import open_db, persist_supplier, suppliers_table
+from app.errors import StorageError
 from app.models import Supplier
 
 SUPPLIERS_SEED = [
@@ -165,8 +171,14 @@ def seed_suppliers(db_path: Path | None = None) -> SeedResult:
     """Insert context seed rows that are not already stored under the same name."""
     db = open_db(db_path)
     table = suppliers_table(db)
+    inserted = 0
     try:
-        stored_names = {row["name"] for row in table.all()}
+        stored_names: set[str] = set()
+        for row in table.all():
+            name = row.get("name")
+            if isinstance(name, str) and name:
+                stored_names.add(name)
+
         pending: list[dict] = []
         for record in SUPPLIERS_SEED:
             if record["name"] in stored_names:
@@ -174,20 +186,58 @@ def seed_suppliers(db_path: Path | None = None) -> SeedResult:
             Supplier.from_client(record)
             pending.append(record)
             stored_names.add(record["name"])
+
         for record in pending:
-            persist_supplier(table, record)
-        return SeedResult(inserted=len(pending), total=len(table))
+            try:
+                persist_supplier(table, record)
+            except StorageError as exc:
+                raise ValueError(
+                    "could not write the supplier database after inserting "
+                    f"{inserted} of {len(pending)} pending row(s). "
+                    "Fix storage and re-run seed; existing names are skipped."
+                ) from exc
+            inserted += 1
+        return SeedResult(inserted=inserted, total=len(table))
+    except StorageError:
+        raise
+    except ValidationError as exc:
+        raise ValueError(
+            f"Seed data failed validation after inserting {inserted} row(s)."
+        ) from exc
+    except OSError as exc:
+        raise StorageError("Storage unavailable") from exc
     finally:
         db.close()
 
 
-def main() -> None:
-    result = seed_suppliers()
+def main(argv: list[str] | None = None) -> int:
+    _ = argv  # CLI currently takes no arguments; reserved for compatibility.
+    try:
+        result = seed_suppliers()
+    except StorageError:
+        print(
+            "Seed failed: could not read or write the supplier database. "
+            "Check file permissions and try again.",
+            file=sys.stderr,
+        )
+        return 1
+    except ValueError as exc:
+        print(f"Seed failed: {exc}", file=sys.stderr)
+        return 1
+    except Exception:
+        print(
+            "Seed failed due to an unexpected error. Check the database path and try again.",
+            file=sys.stderr,
+        )
+        return 1
+
     print(
         f"Seed complete. Inserted {result.inserted} supplier(s). "
         f"{result.total} supplier(s) stored."
     )
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
+
