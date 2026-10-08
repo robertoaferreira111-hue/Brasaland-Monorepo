@@ -315,6 +315,38 @@ tr.is-suspended {
   border-color: #bbf7d0;
 }
 
+.error-panel {
+  margin-top: 1rem;
+}
+
+.error-actions,
+.row-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 0.65rem;
+}
+
+.button-secondary {
+  border-color: var(--accent);
+  background: var(--white);
+  color: var(--accent);
+}
+
+.text-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.recovery-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

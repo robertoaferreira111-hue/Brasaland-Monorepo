@@ -1,3 +1,10 @@
+import { USER_MESSAGES, normalizeSupplier } from "./supplierErrors.mjs";
+import {
+  requestJsonMutation,
+  requestSupplierList,
+  withLoadingState,
+} from "./supplierRequests.mjs";
+
 function resolveApiBase() {
   const override = new URLSearchParams(window.location.search).get("api");
   if (override) {
@@ -36,7 +43,9 @@ const countryFilter = document.getElementById("filter-country");
 const categoryFilter = document.getElementById("filter-category");
 const statusFilter = document.getElementById("filter-status");
 const listStatus = document.getElementById("list-status");
+const listErrorPanel = document.getElementById("list-error-panel");
 const listError = document.getElementById("list-error");
+const listRetry = document.getElementById("list-retry");
 const emptyState = document.getElementById("empty-state");
 const tableWrap = document.getElementById("table-wrap");
 const supplierRows = document.getElementById("supplier-rows");
@@ -48,8 +57,11 @@ const categoryChoices = document.getElementById("category-choices");
 const registerSubmit = document.getElementById("register-submit");
 const formError = document.getElementById("form-error");
 const formSuccess = document.getElementById("form-success");
+const formErrorActions = document.getElementById("form-error-actions");
+const formRetry = document.getElementById("form-retry");
 
 let loadedSuppliers = [];
+let listRequestActive = false;
 
 function fillSelect(select, values, allLabel) {
   select.replaceChildren();
@@ -97,6 +109,31 @@ function showMessage(element, text) {
   element.textContent = text || "";
 }
 
+function setListError(message) {
+  showMessage(listError, message);
+  listErrorPanel.hidden = !message;
+}
+
+function setFormError(message) {
+  showMessage(formError, message);
+  formErrorActions.hidden = !message;
+}
+
+function setFiltersDisabled(disabled) {
+  for (const control of filtersForm.querySelectorAll("select")) {
+    control.disabled = disabled;
+  }
+}
+
+function setListLoading(isLoading) {
+  listRequestActive = isLoading;
+  setFiltersDisabled(isLoading);
+  tableWrap.setAttribute("aria-busy", isLoading ? "true" : "false");
+  if (isLoading) {
+    listStatus.textContent = "Loading suppliers…";
+  }
+}
+
 function visibleSuppliers() {
   const status = statusFilter.value;
   if (!status) {
@@ -106,9 +143,12 @@ function visibleSuppliers() {
 }
 
 function formatTimestamp(value) {
+  if (value == null || value === "") {
+    return "";
+  }
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    return String(value ?? "");
+    return String(value);
   }
   return parsed.toLocaleString();
 }
@@ -118,7 +158,9 @@ function renderSuppliers(options = {}) {
     supplierRows.replaceChildren();
     emptyState.hidden = true;
     tableWrap.hidden = true;
-    listStatus.textContent = "";
+    if (!listRequestActive) {
+      listStatus.textContent = "";
+    }
     return;
   }
 
@@ -134,15 +176,16 @@ function renderSuppliers(options = {}) {
       row.classList.add("is-suspended");
     }
 
+    const displayName = supplier.name || "Unnamed supplier";
     row.append(
-      cell(supplier.name),
+      cell(displayName),
       cell(supplier.country),
-      cell((supplier.categories || []).join(", ")),
-      rateCell(supplier),
+      cell((supplier.categories ?? []).join(", ")),
+      rateCell(supplier, displayName),
       cell(supplier.currency),
       statusCell(supplier),
-      cell(supplier.contact_email || ""),
-      cell(supplier.notes || ""),
+      cell(supplier.contact_email ?? ""),
+      cell(supplier.notes ?? ""),
       cell(formatTimestamp(supplier.updated_at)),
     );
     supplierRows.append(row);
@@ -159,7 +202,34 @@ function cell(text) {
   return item;
 }
 
-function rateCell(supplier) {
+function attachRowRecovery(container, onRetry) {
+  const actions = document.createElement("div");
+  actions.className = "row-recovery";
+  actions.hidden = true;
+
+  const retry = document.createElement("button");
+  retry.type = "button";
+  retry.className = "button-secondary";
+  retry.textContent = "Try again";
+  retry.addEventListener("click", () => {
+    onRetry();
+  });
+
+  const support = document.createElement("p");
+  support.className = "recovery-hint";
+  support.textContent = "If this keeps happening, contact support.";
+
+  actions.append(retry, support);
+  container.append(actions);
+  return actions;
+}
+
+function showRowFailure(error, recovery, message) {
+  showMessage(error, message);
+  recovery.hidden = !message;
+}
+
+function rateCell(supplier, displayName) {
   const item = document.createElement("td");
   const form = document.createElement("form");
   form.className = "rate-form";
@@ -171,18 +241,24 @@ function rateCell(supplier) {
   input.name = "rate_per_unit";
   input.required = true;
   input.value = supplier.rate_per_unit;
-  input.setAttribute("aria-label", `rate_per_unit for ${supplier.name}`);
+  input.setAttribute("aria-label", `rate_per_unit for ${displayName}`);
 
   const button = document.createElement("button");
   button.type = "submit";
   button.textContent = "Update rate";
+  button.dataset.defaultLabel = "Update rate";
 
   const error = document.createElement("p");
   error.className = "row-error";
   error.hidden = true;
 
   form.append(input, button, error);
+  const recovery = attachRowRecovery(form, () => {
+    updateRate(form);
+  });
   item.append(form);
+  form._rowError = error;
+  form._rowRecovery = recovery;
   return item;
 }
 
@@ -200,7 +276,9 @@ function statusCell(supplier) {
   button.dataset.statusToggle = String(supplier.id);
   const nextStatus = supplier.status === "active" ? "suspended" : "active";
   button.dataset.nextStatus = nextStatus;
-  button.textContent = nextStatus === "suspended" ? "Suspend" : "Activate";
+  button.dataset.defaultLabel =
+    nextStatus === "suspended" ? "Suspend" : "Activate";
+  button.textContent = button.dataset.defaultLabel;
 
   const error = document.createElement("p");
   error.className = "row-error";
@@ -208,35 +286,18 @@ function statusCell(supplier) {
   error.hidden = true;
 
   actions.append(badge, button, error);
+  const recovery = attachRowRecovery(actions, () => {
+    updateStatus(button);
+  });
   item.append(actions);
+  button._rowError = error;
+  button._rowRecovery = recovery;
   return item;
 }
 
-async function readError(response) {
-  try {
-    const payload = await response.json();
-    if (Array.isArray(payload.detail)) {
-      return payload.detail
-        .map((item) => {
-          const location = Array.isArray(item.loc)
-            ? item.loc.filter((part) => part !== "body").join(".")
-            : "";
-          return location ? `${location}: ${item.msg}` : item.msg;
-        })
-        .join(" ");
-    }
-    if (typeof payload.detail === "string") {
-      return payload.detail;
-    }
-  } catch (_error) {
-    return `The supplier API returned HTTP ${response.status}.`;
-  }
-  return `The supplier API returned HTTP ${response.status}.`;
-}
-
 async function loadSuppliers() {
-  showMessage(listError, "");
-  listStatus.textContent = "Loading suppliers…";
+  setListError("");
+
   const params = new URLSearchParams();
   if (countryFilter.value) {
     params.set("country", countryFilter.value);
@@ -247,93 +308,114 @@ async function loadSuppliers() {
   const query = params.toString();
   const url = query ? `${API_BASE}/suppliers?${query}` : `${API_BASE}/suppliers`;
 
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      loadedSuppliers = [];
-      renderSuppliers({ failed: true });
-      showMessage(listError, await readError(response));
-      return;
-    }
-    loadedSuppliers = await response.json();
-    renderSuppliers();
-  } catch (_error) {
+  const result = await withLoadingState(setListLoading, () =>
+    requestSupplierList(url),
+  );
+
+  if (result.status !== "fulfilled") {
     loadedSuppliers = [];
     renderSuppliers({ failed: true });
-    showMessage(
-      listError,
-      `The supplier API is not reachable at ${API_BASE}.`,
-    );
+    setListError(result.message);
+    listStatus.textContent = "";
+    return;
   }
+
+  loadedSuppliers = result.suppliers;
+  setListError("");
+  renderSuppliers();
 }
 
 function replaceSupplier(updated) {
-  const index = loadedSuppliers.findIndex((supplier) => supplier.id === updated.id);
+  const normalized = normalizeSupplier(updated);
+  if (!normalized) {
+    setListError(USER_MESSAGES.malformed);
+    return;
+  }
+  const index = loadedSuppliers.findIndex(
+    (supplier) => supplier.id === normalized.id,
+  );
   if (index === -1) {
-    loadedSuppliers.push(updated);
+    loadedSuppliers.push(normalized);
   } else {
-    loadedSuppliers[index] = updated;
+    loadedSuppliers[index] = normalized;
   }
   renderSuppliers();
 }
 
+function setBusyButton(button, busy, busyLabel) {
+  if (!button) {
+    return;
+  }
+  button.disabled = busy;
+  button.textContent = busy
+    ? busyLabel
+    : button.dataset.defaultLabel || button.textContent;
+}
+
 async function updateRate(form) {
   const supplierId = form.dataset.rateForm;
-  const error = form.querySelector(".row-error");
-  const button = form.querySelector("button");
+  const error = form._rowError || form.querySelector(".row-error");
+  const recovery = form._rowRecovery || form.querySelector(".row-recovery");
+  const button = form.querySelector('button[type="submit"]');
   const rate = Number(form.rate_per_unit.value);
-  showMessage(error, "");
-  button.disabled = true;
+  showRowFailure(error, recovery, "");
+  setBusyButton(button, true, "Saving…");
   try {
-    const response = await fetch(`${API_BASE}/suppliers/${supplierId}/rate`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rate_per_unit: rate }),
-    });
-    if (!response.ok) {
-      showMessage(error, await readError(response));
+    const result = await requestJsonMutation(
+      `${API_BASE}/suppliers/${supplierId}/rate`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rate_per_unit: rate }),
+      },
+    );
+    if (result.status !== "fulfilled") {
+      showRowFailure(error, recovery, result.message);
       return;
     }
-    replaceSupplier(await response.json());
+    replaceSupplier(result.data);
     showMessage(formSuccess, "Rate updated.");
-    showMessage(formError, "");
-  } catch (_error) {
-    showMessage(error, `The supplier API is not reachable at ${API_BASE}.`);
+    setFormError("");
   } finally {
-    button.disabled = false;
+    setBusyButton(button, false);
   }
 }
 
 async function updateStatus(button) {
   const supplierId = button.dataset.statusToggle;
   const nextStatus = button.dataset.nextStatus;
-  const error = button.parentElement.querySelector(".row-error");
-  showMessage(error, "");
-  button.disabled = true;
+  const error =
+    button._rowError ||
+    button.parentElement.querySelector(".row-error");
+  const recovery =
+    button._rowRecovery ||
+    button.parentElement.querySelector(".row-recovery");
+  showRowFailure(error, recovery, "");
+  setBusyButton(button, true, "Saving…");
   try {
-    const response = await fetch(`${API_BASE}/suppliers/${supplierId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: nextStatus }),
-    });
-    if (!response.ok) {
-      showMessage(error, await readError(response));
+    const result = await requestJsonMutation(
+      `${API_BASE}/suppliers/${supplierId}/status`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      },
+    );
+    if (result.status !== "fulfilled") {
+      showRowFailure(error, recovery, result.message);
       return;
     }
-    const updated = await response.json();
-    replaceSupplier(updated);
-    showMessage(formSuccess, `Status updated to ${updated.status}.`);
-    showMessage(formError, "");
-  } catch (_error) {
-    showMessage(error, `The supplier API is not reachable at ${API_BASE}.`);
+    replaceSupplier(result.data);
+    showMessage(formSuccess, `Status updated to ${result.data.status}.`);
+    setFormError("");
   } finally {
-    button.disabled = false;
+    setBusyButton(button, false);
   }
 }
 
 async function registerSupplier(event) {
   event.preventDefault();
-  showMessage(formError, "");
+  setFormError("");
   showMessage(formSuccess, "");
 
   const selectedCategories = [
@@ -341,7 +423,7 @@ async function registerSupplier(event) {
   ].map((input) => input.value);
 
   if (selectedCategories.length === 0) {
-    showMessage(formError, "Select at least one category.");
+    setFormError("Select at least one category.");
     return;
   }
 
@@ -362,28 +444,31 @@ async function registerSupplier(event) {
     payload.notes = notes;
   }
 
-  registerSubmit.disabled = true;
+  registerSubmit.dataset.defaultLabel =
+    registerSubmit.dataset.defaultLabel || registerSubmit.textContent;
+  setBusyButton(registerSubmit, true, "Registering…");
   try {
-    const response = await fetch(`${API_BASE}/suppliers`, {
+    const result = await requestJsonMutation(`${API_BASE}/suppliers`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!response.ok) {
-      showMessage(formError, await readError(response));
+    if (result.status !== "fulfilled") {
+      setFormError(result.message);
       return;
     }
-    const created = await response.json();
     registerForm.reset();
     registerCountry.value = "Colombia";
     registerStatus.value = "active";
     syncCurrency();
-    showMessage(formSuccess, `${created.name} was registered.`);
+    showMessage(
+      formSuccess,
+      `${result.data.name || "Supplier"} was registered.`,
+    );
+    setFormError("");
     await loadSuppliers();
-  } catch (_error) {
-    showMessage(formError, `The supplier API is not reachable at ${API_BASE}.`);
   } finally {
-    registerSubmit.disabled = false;
+    setBusyButton(registerSubmit, false);
   }
 }
 
@@ -416,6 +501,12 @@ filtersForm.addEventListener("change", (event) => {
   loadSuppliers();
 });
 registerForm.addEventListener("submit", registerSupplier);
+listRetry.addEventListener("click", () => {
+  loadSuppliers();
+});
+formRetry.addEventListener("click", () => {
+  registerForm.requestSubmit();
+});
 supplierRows.addEventListener("submit", (event) => {
   const form = event.target.closest("[data-rate-form]");
   if (!form) {

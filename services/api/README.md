@@ -46,6 +46,22 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 uv run pytest
 ```
 
+## Error response contract
+
+Successful responses are unchanged (`SupplierResponse` objects or lists).
+
+Client and server errors use a JSON body with a `detail` field, compatible with the backoffice UI:
+
+| Status | When | `detail` shape |
+|--------|------|----------------|
+| **422** | Request validation (Pydantic / FastAPI) | Array of validation error objects (unchanged FastAPI shape) |
+| **404** | Supplier id not found | String, e.g. `"Supplier not found"` |
+| **500** | Storage failure, corrupt stored row on single-resource routes, or unexpected errors | String: `"Storage unavailable"`, `"Stored supplier data is invalid"`, or `"An unexpected error occurred"` |
+
+List endpoints skip corrupt stored rows (logged server-side) and still return **200** with the valid suppliers. Single-resource routes return **500** with a generic message when a stored document cannot be loaded. Tracebacks, filesystem paths, and internal exception types are not included in API responses; they are logged on the server.
+
+The backoffice UI (`uis/backoffice/supplierErrors.mjs`) maps the stable 500/404 detail strings above to longer recovery-oriented copy. If you change those Python constants, update `BACKEND_SAFE_DETAILS` and the contract tests on both sides.
+
 ## Codespaces
 
 Locally the procurement UI calls `http://127.0.0.1:8000`.
