@@ -1,5 +1,7 @@
 # CONTEXT.md — Brasaland
 
+Supplier directory field names, categories, and statuses are documented in [Supplier-Directory-CONTEXT.md](Supplier-Directory-CONTEXT.md). That file is the supplier-directory schema.
+
 ## Milestone 1: Your Company's Public Website
 
 _Estas instrucciones están disponibles en español._
