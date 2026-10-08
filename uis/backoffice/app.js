@@ -1,4 +1,17 @@
-const API_BASE = "http://127.0.0.1:8000";
+function resolveApiBase() {
+  const override = new URLSearchParams(window.location.search).get("api");
+  if (override) {
+    return override.replace(/\/+$/, "");
+  }
+  const { hostname, protocol } = window.location;
+  if (hostname.endsWith(".app.github.dev")) {
+    const apiHost = hostname.replace(/-\d+(?=\.app\.github\.dev$)/, "-8000");
+    return `${protocol}//${apiHost}`;
+  }
+  return "http://127.0.0.1:8000";
+}
+
+const API_BASE = resolveApiBase();
 
 const CATEGORIES = [
   "carne",
