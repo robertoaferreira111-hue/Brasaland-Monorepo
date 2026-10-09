@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brasaland | Reset password</title>
+    <meta
+      name="description"
+      content="Choose a new Brasaland password using your email reset link."
+    />
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="header-bar">
+        <a class="brand" href="../index.html">Brasaland</a>
+        <button
+          id="nav-toggle"
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+        >
+          Open navigation
+        </button>
+      </div>
+      <nav id="site-nav" class="site-nav" aria-label="Primary">
+        <a href="../index.html">Supplier directory</a>
+        <a href="../login/">Sign in</a>
+        <a href="../forgot-password/">Forgot password</a>
+      </nav>
+    </header>
+    <main id="main" tabindex="-1">
+      <header class="page-intro">
+        <h1>Reset password</h1>
+        <p>Choose a new password for your Brasaland account.</p>
+      </header>
+
+      <section class="panel auth-panel" aria-labelledby="reset-heading">
+        <h2 id="reset-heading">Set a new password</h2>
+
+        <div id="missing-token" hidden>
+          <p class="auth-links">
+            <a href="../forgot-password/">Request a new reset link</a>
+          </p>
+        </div>
+
+        <form id="reset-form" class="auth-form" novalidate>
+          <label for="new_password">New password</label>
+          <input
+            id="new_password"
+            name="new_password"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            required
+            aria-describedby="password-error"
+          />
+          <p id="password-error" class="field-error" aria-live="polite"></p>
+
+          <label for="confirm_password">Confirm new password</label>
+          <input
+            id="confirm_password"
+            name="confirm_password"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            required
+            aria-describedby="confirm-error"
+          />
+          <p id="confirm-error" class="field-error" aria-live="polite"></p>
+
+          <div class="form-actions">
+            <button id="reset-submit" type="submit">Reset password</button>
+          </div>
+        </form>
+
+        <p class="auth-links">
+          <a href="../forgot-password/">Forgot your password?</a>
+          ·
+          <a href="../login/">Back to sign in</a>
+        </p>
+        <p id="form-error" class="message message-error" role="alert" hidden></p>
+        <p id="form-success" class="message message-success" role="status" hidden></p>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <p>© 2025 Brasaland. All rights reserved.</p>
+    </footer>
+    <script type="module" src="../js/reset-password-page.js"></script>
+  </body>
+</html>

@@ -3,8 +3,13 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.database import open_db, persist_supplier, suppliers_table
+from app.database import open_db, persist_supplier, suppliers_table, users_table
 from app.models import Supplier
+from app.users import create_user, get_user_by_email
+
+# Dev/demo account for password-reset flows. Override in production.
+SEED_USER_EMAIL = "lucia@brasaland.com"
+SEED_USER_PASSWORD = "ChangeMe123!"
 
 SUPPLIERS_SEED = [
     {
@@ -181,11 +186,36 @@ def seed_suppliers(db_path: Path | None = None) -> SeedResult:
         db.close()
 
 
+@dataclass(frozen=True)
+class UserSeedResult:
+    inserted: bool
+    email: str
+
+
+def seed_users(db_path: Path | None = None) -> UserSeedResult:
+    """Insert the demo user once (idempotent by email)."""
+    db = open_db(db_path)
+    table = users_table(db)
+    try:
+        if get_user_by_email(table, SEED_USER_EMAIL) is not None:
+            return UserSeedResult(inserted=False, email=SEED_USER_EMAIL)
+        create_user(table, email=SEED_USER_EMAIL, password=SEED_USER_PASSWORD)
+        return UserSeedResult(inserted=True, email=SEED_USER_EMAIL)
+    finally:
+        db.close()
+
+
 def main() -> None:
     result = seed_suppliers()
+    users = seed_users()
+    user_msg = (
+        f"Inserted demo user {users.email}."
+        if users.inserted
+        else f"Demo user {users.email} already present."
+    )
     print(
         f"Seed complete. Inserted {result.inserted} supplier(s). "
-        f"{result.total} supplier(s) stored."
+        f"{result.total} supplier(s) stored. {user_msg}"
     )
 
 

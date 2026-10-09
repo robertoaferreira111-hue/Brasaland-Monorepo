@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brasaland | Forgot password</title>
+    <meta
+      name="description"
+      content="Request a Brasaland password reset email."
+    />
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="header-bar">
+        <a class="brand" href="../index.html">Brasaland</a>
+        <button
+          id="nav-toggle"
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+        >
+          Open navigation
+        </button>
+      </div>
+      <nav id="site-nav" class="site-nav" aria-label="Primary">
+        <a href="../index.html">Supplier directory</a>
+        <a href="../login/">Sign in</a>
+        <a href="./" aria-current="page">Forgot password</a>
+      </nav>
+    </header>
+    <main id="main" tabindex="-1">
+      <header class="page-intro">
+        <h1>Forgot password</h1>
+        <p>
+          Enter your account email. If it is registered, we will send a reset
+          link.
+        </p>
+      </header>
+
+      <section class="panel auth-panel" aria-labelledby="forgot-heading">
+        <h2 id="forgot-heading">Request a reset link</h2>
+        <form id="forgot-form" class="auth-form" novalidate>
+          <label for="email">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autocomplete="email"
+            required
+            aria-describedby="email-error"
+          />
+          <p id="email-error" class="field-error" aria-live="polite"></p>
+
+          <div class="form-actions">
+            <button id="forgot-submit" type="submit">Send reset link</button>
+          </div>
+        </form>
+        <p class="auth-links">
+          <a href="../login/">Back to sign in</a>
+        </p>
+        <p id="form-error" class="message message-error" role="alert" hidden></p>
+        <p id="form-success" class="message message-success" role="status" hidden></p>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <p>© 2025 Brasaland. All rights reserved.</p>
+    </footer>
+    <script type="module" src="../js/forgot-password-page.js"></script>
+  </body>
+</html>

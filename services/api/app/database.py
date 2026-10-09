@@ -2,6 +2,7 @@
 
 from collections.abc import Iterator
 from pathlib import Path
+from threading import RLock
 
 from tinydb import TinyDB
 from tinydb.table import Table
@@ -10,6 +11,12 @@ from app.models import Supplier
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "suppliers.json"
 SUPPLIERS_TABLE = "suppliers"
+USERS_TABLE = "users"
+RESET_TOKENS_TABLE = "password_reset_tokens"
+
+# TinyDB's JSON storage is not safe for concurrent writers in one process.
+# Hold this lock for the lifetime of each request-scoped DB dependency.
+_db_lock = RLock()
 
 
 def open_db(path: Path | None = None) -> TinyDB:
@@ -22,12 +29,39 @@ def suppliers_table(db: TinyDB) -> Table:
     return db.table(SUPPLIERS_TABLE)
 
 
+def users_table(db: TinyDB) -> Table:
+    return db.table(USERS_TABLE)
+
+
+def reset_tokens_table(db: TinyDB) -> Table:
+    return db.table(RESET_TOKENS_TABLE)
+
+
 def get_table() -> Iterator[Table]:
-    db = open_db()
-    try:
-        yield suppliers_table(db)
-    finally:
-        db.close()
+    with _db_lock:
+        db = open_db()
+        try:
+            yield suppliers_table(db)
+        finally:
+            db.close()
+
+
+def get_users_table() -> Iterator[Table]:
+    with _db_lock:
+        db = open_db()
+        try:
+            yield users_table(db)
+        finally:
+            db.close()
+
+
+def get_reset_tokens_table() -> Iterator[Table]:
+    with _db_lock:
+        db = open_db()
+        try:
+            yield reset_tokens_table(db)
+        finally:
+            db.close()
 
 
 def persist_supplier(table: Table, data: dict) -> tuple[int, dict]:

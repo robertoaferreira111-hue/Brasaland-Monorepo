@@ -355,3 +355,39 @@ tr.is-suspended {
     display: flex;
   }
 }
+
+.auth-panel {
+  max-width: 32rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.auth-form label {
+  margin-top: 0.65rem;
+  font-weight: 600;
+}
+
+.auth-form .form-actions {
+  margin-top: 1rem;
+}
+
+.auth-links {
+  margin: 1rem 0 0;
+  color: var(--muted);
+}
+
+.auth-links a {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.field-error {
+  min-height: 1.25rem;
+  margin: 0;
+  color: var(--error);
+  font-size: 0.9rem;
+}

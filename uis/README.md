@@ -23,9 +23,9 @@ npx http-server . -p 3000 -a 0.0.0.0
 
 See [website/README.md](./website/README.md).
 
-## `backoffice` — supplier directory
+## `backoffice` — supplier directory + password recovery
 
-Milestone 09 procurement directory. Static HTML, CSS, and JavaScript. It calls the supplier API in `services/api`. The public website navigation is unchanged.
+Milestone 09 procurement directory. Static HTML, CSS, and JavaScript. It calls the supplier API in `services/api`. AUTH-03 password recovery pages also live here: `/login/`, `/forgot-password/`, `/reset-password/`, `/account/change-password/`.
 
 ```bash
 cd uis/backoffice

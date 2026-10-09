@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brasaland | Sign in</title>
+    <meta name="description" content="Sign in to the Brasaland backoffice." />
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="header-bar">
+        <a class="brand" href="../index.html">Brasaland</a>
+        <button
+          id="nav-toggle"
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+        >
+          Open navigation
+        </button>
+      </div>
+      <nav id="site-nav" class="site-nav" aria-label="Primary">
+        <a href="../index.html">Supplier directory</a>
+        <a href="./" aria-current="page">Sign in</a>
+        <a href="../account/change-password/">Change password</a>
+      </nav>
+    </header>
+    <main id="main" tabindex="-1">
+      <header class="page-intro">
+        <h1>Sign in</h1>
+        <p>Use your Brasaland account to manage procurement access.</p>
+      </header>
+
+      <section class="panel auth-panel" aria-labelledby="login-heading">
+        <h2 id="login-heading">Account login</h2>
+        <form id="login-form" class="auth-form" novalidate>
+          <label for="email">Email</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autocomplete="username"
+            required
+            aria-describedby="email-error"
+          />
+          <p id="email-error" class="field-error" aria-live="polite"></p>
+
+          <label for="password">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+
+          <div class="form-actions">
+            <button id="login-submit" type="submit">Sign in</button>
+          </div>
+        </form>
+        <p class="auth-links">
+          <a href="../forgot-password/">Forgot your password?</a>
+        </p>
+        <p id="form-error" class="message message-error" role="alert" hidden></p>
+        <p id="form-success" class="message message-success" role="status" hidden></p>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <p>© 2025 Brasaland. All rights reserved.</p>
+    </footer>
+    <script type="module" src="../js/login-page.js"></script>
+  </body>
+</html>
