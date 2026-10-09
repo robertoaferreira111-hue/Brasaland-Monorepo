@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brasaland | Change password</title>
+    <meta
+      name="description"
+      content="Change your Brasaland account password while signed in."
+    />
+    <link rel="stylesheet" href="../../styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="header-bar">
+        <a class="brand" href="../../index.html">Brasaland</a>
+        <button
+          id="nav-toggle"
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+        >
+          Open navigation
+        </button>
+      </div>
+      <nav id="site-nav" class="site-nav" aria-label="Primary">
+        <a href="../../index.html">Supplier directory</a>
+        <a href="../../login/">Sign in</a>
+        <a href="./" aria-current="page">Change password</a>
+      </nav>
+    </header>
+    <main id="main" tabindex="-1">
+      <header class="page-intro">
+        <h1>Change password</h1>
+        <p>Update your password while signed in to the backoffice.</p>
+      </header>
+
+      <section class="panel auth-panel" aria-labelledby="change-heading">
+        <h2 id="change-heading">Update password</h2>
+        <form id="change-form" class="auth-form" novalidate>
+          <label for="current_password">Current password</label>
+          <input
+            id="current_password"
+            name="current_password"
+            type="password"
+            autocomplete="current-password"
+            required
+            aria-describedby="current-error"
+          />
+          <p id="current-error" class="field-error" aria-live="polite"></p>
+
+          <label for="new_password">New password</label>
+          <input
+            id="new_password"
+            name="new_password"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            required
+            aria-describedby="password-error"
+          />
+          <p id="password-error" class="field-error" aria-live="polite"></p>
+
+          <label for="confirm_password">Confirm new password</label>
+          <input
+            id="confirm_password"
+            name="confirm_password"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            required
+            aria-describedby="confirm-error"
+          />
+          <p id="confirm-error" class="field-error" aria-live="polite"></p>
+
+          <div class="form-actions">
+            <button id="change-submit" type="submit">Update password</button>
+          </div>
+        </form>
+        <p class="auth-links">
+          <a href="../../login/">Back to sign in</a>
+        </p>
+        <p id="form-error" class="message message-error" role="alert" hidden></p>
+        <p id="form-success" class="message message-success" role="status" hidden></p>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <p>© 2025 Brasaland. All rights reserved.</p>
+    </footer>
+    <script type="module" src="../../js/change-password-page.js"></script>
+  </body>
+</html>

@@ -3,6 +3,7 @@ dist/
 .DS_Store
 __pycache__/
 *.pyc
+.env
 services/api/.venv/
 services/api/.pytest_cache/
 services/api/data/*.json

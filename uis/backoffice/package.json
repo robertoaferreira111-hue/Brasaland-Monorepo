@@ -1,0 +1,14 @@
+{
+  "name": "brasaland-backoffice",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Brasaland supplier directory UI and password recovery pages",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

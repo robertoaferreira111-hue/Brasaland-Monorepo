@@ -49,13 +49,14 @@ You are building **one company** across many milestones and projects. Each top-l
 
 ---
 
-## Current status of the template
+## Current status
 
-> 💡 This repository currently provides a **base folder structure and documentation skeleton** only. It does not include runnable apps or global scripts yet.
->
-> - `CONTEXT.md` is a placeholder and must be replaced with your assigned company context.
-> - There is no root `AGENTS.md` yet.
-> - Shared package metadata exists in `packages/shared/package.json` (`@repo/shared-types`), but no workspace runner is configured at root.
+Runnable Brasaland work in this monorepo includes:
+
+- Public website (`uis/website`) and supplier backoffice (`uis/backoffice`)
+- Supplier directory API (`services/api`) on FastAPI + TinyDB
+- **AUTH-03 password reset flow** — forgot / reset / change password + Resend email  
+  See [`docs/submission/password-reset-acceptance.md`](./docs/submission/password-reset-acceptance.md) and root [`.env.example`](./.env.example) (`RESEND_API_KEY`).
 
 ---
 
