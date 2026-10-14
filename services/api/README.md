@@ -45,7 +45,10 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ```bash
 uv run pytest
+uv run pytest --cov=app --cov-report=term-missing
 ```
+
+See [TESTING.md](./TESTING.md) for the AUTH-088 test plan, coverage results, AI-assisted findings, Jest instructions for `uis/backoffice`, and optional extras.
 
 ## Quick curl check
 
