@@ -43,6 +43,15 @@ cd services/api && uv sync && uv run uvicorn app.main:app --reload --host 127.0.
 
 Then run the backoffice (`npm run dev` on port 3001). The public `website` app does not use this API.
 
+## `backoffice` — supplier directory
+
+Milestone 09 procurement directory. Static HTML, CSS, and JavaScript. It calls the supplier API in `services/api`. The public website navigation is unchanged.
+
+```bash
+cd uis/backoffice
+npx http-server . -p 3001 -a 0.0.0.0
+```
+
 See [backoffice/README.md](./backoffice/README.md).
 
 > _Estas instrucciones también están disponibles en [español](./README.es.md)._

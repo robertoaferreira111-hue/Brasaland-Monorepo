@@ -2,6 +2,9 @@
 name = "brasaland-auth-api"
 version = "0.1.0"
 description = "Brasaland staff JWT auth API for backoffice"
+name = "brasaland-supplier-api"
+version = "0.1.0"
+description = "Brasaland supplier directory TinyDB storage API"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
@@ -16,6 +19,7 @@ seed = "app.seed:main"
 
 [dependency-groups]
 dev = ["httpx>=0.27", "pytest>=8", "pytest-cov>=6"]
+dev = ["httpx>=0.27", "pytest>=8"]
 
 [build-system]
 requires = ["hatchling"]

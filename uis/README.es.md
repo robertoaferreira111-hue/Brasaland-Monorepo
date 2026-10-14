@@ -35,6 +35,15 @@ npm run dev
 
 Abre `http://127.0.0.1:3001`. `/login` y `/register` son públicas. `/account` redirige a `/login` si no hay un JWT en `localStorage`. La URL de la API es `http://127.0.0.1:8000` por defecto (`NEXT_PUBLIC_API_URL`).
 
+## `backoffice` — directorio de proveedores
+
+Directorio de compras del hito 09. HTML, CSS y JavaScript estáticos. Llama a la API de proveedores en `services/api`. La navegación del sitio público no cambia.
+
+```bash
+cd uis/backoffice
+npx http-server . -p 3001 -a 0.0.0.0
+```
+
 Detalle en [backoffice/README.md](./backoffice/README.md).
 
 > _These instructions are also available in [English](./README.md)._
