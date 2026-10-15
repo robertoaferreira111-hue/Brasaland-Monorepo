@@ -1,16 +1,19 @@
 # Brasaland supplier directory API
 
+Staff JWT auth and the supplier directory share this FastAPI app. Supplier routes require a bearer access token. Register, login, refresh, and `/health` stay public.
+
 ## Folder layout
 
-The sample rubric lists `main.py`, `models.py`, `database.py`, and `seed.py` directly in `services/api/`, and the endpoints in `routes/suppliers.py`. This repo uses an installable package instead:
-
 - `services/api/app/main.py`
-- `services/api/app/models.py`
-- `services/api/app/database.py`
+- `services/api/app/models.py` — supplier schema and staff auth models
+- `services/api/app/database.py` — TinyDB tables `suppliers`, `users`, and `refresh_tokens` in `data/suppliers.json`
 - `services/api/app/seed.py`
-- `services/api/app/routers/suppliers.py` (same HTTP routes; the package is named `routers`, not `routes`)
-
-The behavior matches the rubric. The run command is `uv run uvicorn app.main:app --reload` because the modules live in the `app` package.
+- `services/api/app/security.py` — PBKDF2 passwords and PyJWT
+- `services/api/app/deps.py` — `current_user_email`
+- `services/api/app/routers/suppliers.py` — protected supplier routes
+- `services/api/app/routers/users.py` — `POST /users`
+- `services/api/app/routers/auth.py` — login, logout, refresh, `/auth/me`
+- `services/api/app/routers/profiles.py` — `PUT /profiles/me`
 
 ## Install
 
@@ -26,7 +29,7 @@ uv sync
 uv run seed
 ```
 
-The seed is idempotent. A second run inserts 0.
+The supplier seed is idempotent. A second run inserts 0 suppliers. The same command creates `staff@brasaland.com` / `demo-password` when that account is missing.
 
 ## Run API
 
@@ -40,11 +43,25 @@ On Codespaces, bind every interface so the forwarded port is reachable:
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+## Auth
+
+- `POST /users` — register `{ email, password }`
+- `POST /auth/login` — `{ email, password }` → `{ access_token, refresh_token }`
+- `GET /auth/me` — Bearer profile
+- `PUT /profiles/me` — Bearer profile update
+- `POST /auth/logout` — Bearer, revokes refresh tokens
+- `POST /auth/refresh` — `{ refresh_token }` → new token pair
+- `/suppliers` — every method requires `Authorization: Bearer <access_token>`
+
+Set `JWT_SECRET` outside local demo use.
+
 ## Tests
 
 ```bash
 uv run pytest
 ```
+
+See [TESTING.md](./TESTING.md) for the AUTH-088 cases.
 
 ## Codespaces
 

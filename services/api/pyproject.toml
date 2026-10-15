@@ -1,11 +1,12 @@
 [project]
 name = "brasaland-supplier-api"
 version = "0.1.0"
-description = "Brasaland supplier directory TinyDB storage API"
+description = "Brasaland supplier directory API with staff JWT auth"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
     "pydantic>=2",
+    "pyjwt>=2.9",
     "tinydb>=4",
     "uvicorn>=0.32",
 ]

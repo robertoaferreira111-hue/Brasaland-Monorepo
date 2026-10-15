@@ -148,6 +148,20 @@ main,
   background: var(--white);
 }
 
+.nav-logout {
+  min-height: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text);
+  padding: 0.45rem 0.8rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.auth-main {
+  width: min(32rem, calc(100% - 2rem));
+}
+
 .nav-toggle {
   background: transparent;
   color: var(--text);

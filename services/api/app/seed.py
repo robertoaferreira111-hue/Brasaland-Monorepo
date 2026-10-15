@@ -3,8 +3,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.database import open_db, persist_supplier, suppliers_table
-from app.models import Supplier
+from app.database import create_user, open_db, persist_supplier, suppliers_table, users_table
+from app.models import RegisterUser, Supplier
 
 SUPPLIERS_SEED = [
     {
@@ -181,12 +181,30 @@ def seed_suppliers(db_path: Path | None = None) -> SeedResult:
         db.close()
 
 
+def seed_staff_user() -> str:
+    """Create the local demo staff account when it is not already stored."""
+    db = open_db()
+    try:
+        table = users_table(db)
+        try:
+            profile = create_user(
+                table,
+                RegisterUser(email="staff@brasaland.com", password="demo-password"),
+            )
+        except ValueError:
+            return "Staff user already exists."
+        return f"Seeded {profile.email}"
+    finally:
+        db.close()
+
+
 def main() -> None:
     result = seed_suppliers()
     print(
         f"Seed complete. Inserted {result.inserted} supplier(s). "
         f"{result.total} supplier(s) stored."
     )
+    print(seed_staff_user())
 
 
 if __name__ == "__main__":
