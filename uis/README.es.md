@@ -23,21 +23,9 @@ npx http-server . -p 3000 -a 0.0.0.0
 
 Detalle en [website/README.md](./website/README.md).
 
-## `backoffice` — aplicación del personal
-
-Aplicación Next.js para el inicio de sesión del personal. No modifica el sitio público.
-
-```bash
-cd uis/backoffice
-npm install
-npm run dev
-```
-
-Abre `http://127.0.0.1:3001`. `/login` y `/register` son públicas. `/account` redirige a `/login` si no hay un JWT en `localStorage`. La URL de la API es `http://127.0.0.1:8000` por defecto (`NEXT_PUBLIC_API_URL`).
-
 ## `backoffice` — directorio de proveedores
 
-Directorio de compras del hito 09. HTML, CSS y JavaScript estáticos. Llama a la API de proveedores en `services/api`. La navegación del sitio público no cambia.
+Directorio de compras de Lucía Fernández, con inicio de sesión del personal en la misma aplicación estática. HTML, CSS y JavaScript. Llama a la API de proveedores en `services/api`. Las rutas de proveedores exigen un JWT. `/login/` y `/register/` son públicas. El directorio y `/account/` redirigen a `/login/` si no hay token de acceso en `localStorage`. Un 401 borra la sesión y vuelve al inicio de sesión. La navegación del sitio público no cambia.
 
 ```bash
 cd uis/backoffice

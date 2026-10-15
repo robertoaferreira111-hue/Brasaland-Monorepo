@@ -7,9 +7,9 @@ Each subfolder inside `services/` must correspond to **one specific service** (f
 - **Main purpose**: to centralize all the backend logic, APIs, and queue consumers that support the company's use cases.
 - **Recommendation**: document in this file (or in sub-READMEs) the services you add, their objective, the technology used, and how to run them.
 
-## `api` — staff JWT auth (backoffice)
+## `api` — supplier directory and staff auth
 
-FastAPI + TinyDB service used by `uis/backoffice` on port **8000**.
+FastAPI + TinyDB service used by `uis/backoffice` on port **8000**. Supplier routes require a staff JWT. Register and login stay public.
 
 ```bash
 cd services/api
@@ -17,6 +17,6 @@ uv sync
 uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Optional demo user: `uv run seed` (`staff@brasaland.com` / `demo-password`). See [api/README.md](./api/README.md).
+`uv run seed` loads the supplier list and creates `staff@brasaland.com` / `demo-password` when that account is missing. See [api/README.md](./api/README.md).
 
 > _Spanish version: [README.es.md](./README.es.md)._

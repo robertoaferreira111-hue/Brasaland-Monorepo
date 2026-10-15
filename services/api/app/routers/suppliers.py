@@ -5,6 +5,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from tinydb.table import Table
 
+from app.deps import current_user_email
+
 from app.database import (
     delete_supplier,
     get_supplier_document,
@@ -24,7 +26,11 @@ from app.models import (
     SupplierResponse,
 )
 
-router = APIRouter(prefix="/suppliers", tags=["suppliers"])
+router = APIRouter(
+    prefix="/suppliers",
+    tags=["suppliers"],
+    dependencies=[Depends(current_user_email)],
+)
 
 
 def _response(supplier_id: int, document: dict) -> SupplierResponse:

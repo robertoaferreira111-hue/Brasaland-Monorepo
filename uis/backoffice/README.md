@@ -22,7 +22,9 @@ Serve this folder:
 npx http-server . -p 3001 -a 0.0.0.0
 ```
 
-Open `http://127.0.0.1:3001`.
+Open `http://127.0.0.1:3001`. The directory and the account page send you to `/login/` when no access token is stored. Sign in, or register, then the supplier list loads with `Authorization: Bearer`. Log out calls `POST /auth/logout`, clears `localStorage`, and returns to login. A protected `401` tries `POST /auth/refresh` once. If refresh fails, the session is cleared and the page opens `/login/`.
+
+Demo account after `uv run seed`: `staff@brasaland.com` / `demo-password`.
 
 ## API address
 

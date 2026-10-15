@@ -1,17 +1,6 @@
-function resolveApiBase() {
-  const override = new URLSearchParams(window.location.search).get("api");
-  if (override) {
-    return override.replace(/\/+$/, "");
-  }
-  const { hostname, protocol } = window.location;
-  if (hostname.endsWith(".app.github.dev")) {
-    const apiHost = hostname.replace(/-\d+(?=\.app\.github\.dev$)/, "-8000");
-    return `${protocol}//${apiHost}`;
-  }
-  return "http://127.0.0.1:8000";
-}
-
-const API_BASE = resolveApiBase();
+const session = window.BrasalandSession;
+session.requireSession();
+const API_BASE = session.API_BASE;
 
 const CATEGORIES = [
   "carne",
@@ -248,7 +237,7 @@ async function loadSuppliers() {
   const url = query ? `${API_BASE}/suppliers?${query}` : `${API_BASE}/suppliers`;
 
   try {
-    const response = await fetch(url);
+    const response = await session.apiFetch(url);
     if (!response.ok) {
       loadedSuppliers = [];
       renderSuppliers({ failed: true });
@@ -285,9 +274,8 @@ async function updateRate(form) {
   showMessage(error, "");
   button.disabled = true;
   try {
-    const response = await fetch(`${API_BASE}/suppliers/${supplierId}/rate`, {
+    const response = await session.apiFetch(`${API_BASE}/suppliers/${supplierId}/rate`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rate_per_unit: rate }),
     });
     if (!response.ok) {
@@ -311,9 +299,8 @@ async function updateStatus(button) {
   showMessage(error, "");
   button.disabled = true;
   try {
-    const response = await fetch(`${API_BASE}/suppliers/${supplierId}/status`, {
+    const response = await session.apiFetch(`${API_BASE}/suppliers/${supplierId}/status`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: nextStatus }),
     });
     if (!response.ok) {
@@ -364,9 +351,8 @@ async function registerSupplier(event) {
 
   registerSubmit.disabled = true;
   try {
-    const response = await fetch(`${API_BASE}/suppliers`, {
+    const response = await session.apiFetch(`${API_BASE}/suppliers`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     if (!response.ok) {
@@ -432,4 +418,11 @@ supplierRows.addEventListener("click", (event) => {
   updateStatus(button);
 });
 
-loadSuppliers();
+document.getElementById("account-link").href = session.hrefWithApi("account/");
+document.getElementById("logout").addEventListener("click", () => {
+  session.logout();
+});
+
+if (session.hasAccessToken()) {
+  loadSuppliers();
+}

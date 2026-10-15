@@ -31,7 +31,28 @@ def db_path(tmp_path, monkeypatch):
 @pytest.fixture
 def client(db_path):
     with TestClient(app) as test_client:
+        registered = test_client.post(
+            "/users",
+            json={"email": "staff@brasaland.com", "password": "secret-pass"},
+        )
+        assert registered.status_code == 201
+        login = test_client.post(
+            "/auth/login",
+            json={"email": "staff@brasaland.com", "password": "secret-pass"},
+        )
+        assert login.status_code == 200
+        test_client.headers.update(
+            {"Authorization": f"Bearer {login.json()['access_token']}"}
+        )
         yield test_client
+
+
+def test_supplier_routes_require_a_staff_token(db_path):
+    with TestClient(app) as anonymous:
+        listed = anonymous.get("/suppliers")
+        created = anonymous.post("/suppliers", json=_payload())
+    assert listed.status_code == 401
+    assert created.status_code == 401
 
 
 def _payload(**overrides) -> dict:

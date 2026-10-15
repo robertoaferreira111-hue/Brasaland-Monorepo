@@ -1,9 +1,12 @@
-"""Supplier schema from the Brasaland supplier-directory context."""
+"""Supplier schema and staff auth models."""
 
+import re
 from datetime import datetime, timezone
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
+
+EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 VALID_CATEGORIES = (
     "carne",
@@ -157,3 +160,57 @@ class SupplierResponse(Supplier):
     """Stored supplier plus the TinyDB document id used by the API routes."""
 
     id: int
+
+
+class RegisterUser(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(min_length=3)
+    password: str = Field(min_length=1)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        email = value.strip()
+        if not EMAIL_PATTERN.match(email):
+            raise ValueError("Enter a valid email (example: name@email.com)")
+        return email.lower()
+
+
+class LoginBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str
+    password: str
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class RefreshBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    refresh_token: str = Field(min_length=1)
+
+
+class ProfileBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    phone: str
+    address: str
+
+
+class ProfileResponse(BaseModel):
+    email: str
+    name: str = ""
+    phone: str = ""
+    address: str = ""

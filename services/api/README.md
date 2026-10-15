@@ -1,30 +1,19 @@
-# Brasaland staff auth API
-
-FastAPI JWT backend for `uis/backoffice`. It implements the endpoints the Next.js client calls today:
-
-- `POST /users` — register `{ email, password }`
-- `POST /auth/login` — `{ email, password }` → `{ access_token, refresh_token }`
-- `GET /auth/me` — Bearer → profile (`email`, `name`, `phone`, `address`)
-- `PUT /profiles/me` — Bearer → update profile fields
-- `POST /auth/logout` — Bearer (revokes refresh tokens for that user)
-- `POST /auth/refresh` — `{ refresh_token }` → new token pair
-
-Storage is **TinyDB** (`data/auth.json`, gitignored). Passwords use PBKDF2 (stdlib). Tokens use **PyJWT** with `JWT_SECRET` (set in the environment for anything beyond local demo).
-
-CORS allows `http://127.0.0.1:3000`, `http://localhost:3000`, `http://127.0.0.1:3001`, and `http://localhost:3001`, plus Codespaces `https://*.app.github.dev`.
 # Brasaland supplier directory API
+
+Staff JWT auth and the supplier directory share this FastAPI app. Supplier routes require a bearer access token. Register, login, refresh, and `/health` stay public.
 
 ## Folder layout
 
-The sample rubric lists `main.py`, `models.py`, `database.py`, and `seed.py` directly in `services/api/`, and the endpoints in `routes/suppliers.py`. This repo uses an installable package instead:
-
 - `services/api/app/main.py`
-- `services/api/app/models.py`
-- `services/api/app/database.py`
+- `services/api/app/models.py` — supplier schema and staff auth models
+- `services/api/app/database.py` — TinyDB tables `suppliers`, `users`, and `refresh_tokens` in `data/suppliers.json`
 - `services/api/app/seed.py`
-- `services/api/app/routers/suppliers.py` (same HTTP routes; the package is named `routers`, not `routes`)
-
-The behavior matches the rubric. The run command is `uv run uvicorn app.main:app --reload` because the modules live in the `app` package.
+- `services/api/app/security.py` — PBKDF2 passwords and PyJWT
+- `services/api/app/deps.py` — `current_user_email`
+- `services/api/app/routers/suppliers.py` — protected supplier routes
+- `services/api/app/routers/users.py` — `POST /users`
+- `services/api/app/routers/auth.py` — login, logout, refresh, `/auth/me`
+- `services/api/app/routers/profiles.py` — `PUT /profiles/me`
 
 ## Install
 
@@ -34,23 +23,13 @@ From `services/api`:
 uv sync
 ```
 
-## Optional seed
 ## Seed
 
 ```bash
 uv run seed
 ```
 
-Creates `staff@brasaland.com` / `demo-password` when missing.
-
-## Run API (port 8000)
-
-```bash
-uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Codespaces:
-The seed is idempotent. A second run inserts 0.
+The supplier seed is idempotent. A second run inserts 0 suppliers. The same command creates `staff@brasaland.com` / `demo-password` when that account is missing.
 
 ## Run API
 
@@ -64,29 +43,25 @@ On Codespaces, bind every interface so the forwarded port is reachable:
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+## Auth
+
+- `POST /users` — register `{ email, password }`
+- `POST /auth/login` — `{ email, password }` → `{ access_token, refresh_token }`
+- `GET /auth/me` — Bearer profile
+- `PUT /profiles/me` — Bearer profile update
+- `POST /auth/logout` — Bearer, revokes refresh tokens
+- `POST /auth/refresh` — `{ refresh_token }` → new token pair
+- `/suppliers` — every method requires `Authorization: Bearer <access_token>`
+
+Set `JWT_SECRET` outside local demo use.
+
 ## Tests
 
 ```bash
 uv run pytest
-uv run pytest --cov=app --cov-report=term-missing
 ```
 
-See [TESTING.md](./TESTING.md) for the AUTH-088 test plan, coverage results, AI-assisted findings, Jest instructions for `uis/backoffice`, and optional extras.
-
-## Quick curl check
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/users \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"curl@brasaland.com","password":"demo-pass"}'
-
-curl -s -X POST http://127.0.0.1:8000/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"curl@brasaland.com","password":"demo-pass"}'
-```
-
-Use the `access_token` from login as `Authorization: Bearer …` on `/auth/me` and `/profiles/me`.
-```
+See [TESTING.md](./TESTING.md) for the AUTH-088 cases.
 
 ## Codespaces
 

@@ -23,29 +23,9 @@ npx http-server . -p 3000 -a 0.0.0.0
 
 See [website/README.md](./website/README.md).
 
-## `backoffice` — Brasaland staff app
-
-Next.js app for staff sign-in. It does not change the public website.
-
-```bash
-cd uis/backoffice
-npm install
-npm run dev
-```
-
-Open `http://127.0.0.1:3001`. `/login` and `/register` are public. `/account` redirects to `/login` when `localStorage` has no JWT. The API URL defaults to `http://127.0.0.1:8000` (`NEXT_PUBLIC_API_URL`).
-
-Start the matching API first (from repo root):
-
-```bash
-cd services/api && uv sync && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Then run the backoffice (`npm run dev` on port 3001). The public `website` app does not use this API.
-
 ## `backoffice` — supplier directory
 
-Milestone 09 procurement directory. Static HTML, CSS, and JavaScript. It calls the supplier API in `services/api`. The public website navigation is unchanged.
+Procurement directory for Lucía Fernández, with staff sign-in on the same static app. HTML, CSS, and JavaScript. It calls the supplier API in `services/api`. Supplier routes require a JWT. `/login/` and `/register/` are public. The directory and `/account/` redirect to `/login/` when `localStorage` has no access token. A 401 clears the session and returns to login. The public website navigation is unchanged.
 
 ```bash
 cd uis/backoffice

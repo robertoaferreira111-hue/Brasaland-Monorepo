@@ -25,7 +25,7 @@ Out of scope:
 
 - `GET /health` in `services/api/app/main.py` (no authentication decision)
 - CORS, the seed script, hash encoding, iteration count, and JWT claim layout except where a claim changes the decision (`exp`, `type`, `sub`, `jti`)
-- The Next.js client under `uis/backoffice`
+- The static client under `uis/backoffice`
 - Two stored rows with the same email inserted outside `create_user`. Registration already rejects duplicates (USERS-E1, USERS-E3).
 - The `put_my_profile` branch that returns "Not authenticated" when `update_profile` finds no row. `current_user_email` already requires that row in the same request, so the branch is unreachable in one request.
 
