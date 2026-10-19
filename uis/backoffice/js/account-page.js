@@ -7,7 +7,7 @@ const formError = document.getElementById("form-error");
 const formSuccess = document.getElementById("form-success");
 const pageStatus = document.getElementById("page-status");
 
-document.getElementById("directory-link").href = session.hrefWithApi("../index.html");
+document.getElementById("directory-link").href = session.appHref("index.html");
 document.getElementById("logout").addEventListener("click", () => {
   session.logout();
 });

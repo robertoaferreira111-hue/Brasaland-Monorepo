@@ -167,6 +167,9 @@ class RegisterUser(BaseModel):
 
     email: str = Field(min_length=3)
     password: str = Field(min_length=1)
+    name: str = ""
+    phone: str = ""
+    address: str = ""
 
     @field_validator("email")
     @classmethod
@@ -175,6 +178,11 @@ class RegisterUser(BaseModel):
         if not EMAIL_PATTERN.match(email):
             raise ValueError("Enter a valid email (example: name@email.com)")
         return email.lower()
+
+    @field_validator("name", "phone", "address")
+    @classmethod
+    def strip_optional_profile(cls, value: str) -> str:
+        return value.strip()
 
 
 class LoginBody(BaseModel):

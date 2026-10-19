@@ -22,11 +22,28 @@
         <form id="register-form" class="register-form" novalidate>
           <label>
             Email
-            <input name="email" type="email" autocomplete="username" required />
+            <input name="email" type="email" autocomplete="username" required aria-describedby="email-error" />
+            <span id="email-error" class="field-error" role="alert" hidden></span>
           </label>
           <label>
             Password
-            <input name="password" type="password" autocomplete="new-password" required />
+            <input name="password" type="password" autocomplete="new-password" required aria-describedby="password-error" />
+            <span id="password-error" class="field-error" role="alert" hidden></span>
+          </label>
+          <label>
+            Name <span class="optional">(optional)</span>
+            <input name="name" autocomplete="name" aria-describedby="name-error" />
+            <span id="name-error" class="field-error" role="alert" hidden></span>
+          </label>
+          <label>
+            Phone <span class="optional">(optional)</span>
+            <input name="phone" autocomplete="tel" aria-describedby="phone-error" />
+            <span id="phone-error" class="field-error" role="alert" hidden></span>
+          </label>
+          <label>
+            Address <span class="optional">(optional)</span>
+            <input name="address" autocomplete="street-address" aria-describedby="address-error" />
+            <span id="address-error" class="field-error" role="alert" hidden></span>
           </label>
           <div class="form-actions">
             <button type="submit">Create account</button>

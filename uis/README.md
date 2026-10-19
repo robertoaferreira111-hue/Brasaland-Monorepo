@@ -25,7 +25,7 @@ See [website/README.md](./website/README.md).
 
 ## `backoffice` — supplier directory
 
-Procurement directory for Lucía Fernández, with staff sign-in on the same static app. HTML, CSS, and JavaScript. It calls the supplier API in `services/api`. Supplier routes require a JWT. `/login/` and `/register/` are public. The directory and `/account/` redirect to `/login/` when `localStorage` has no access token. A 401 clears the session and returns to login. The public website navigation is unchanged.
+Procurement directory for Lucía Fernández, with staff sign-in on the same static app. HTML, CSS, and JavaScript. It calls the supplier API in `services/api`. Supplier routes require a JWT. `/login/` and `/register/` are public. The directory and `/account/profile/` redirect to `/login/` when `localStorage` has no access token. A 401 clears the session and returns to login. The public website navigation is unchanged.
 
 ```bash
 cd uis/backoffice
