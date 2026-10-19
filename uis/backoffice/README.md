@@ -22,7 +22,9 @@ Serve this folder:
 npx http-server . -p 3001 -a 0.0.0.0
 ```
 
-Open `http://127.0.0.1:3001`. The directory and the account page send you to `/login/` when no access token is stored. Sign in, or register, then the supplier list loads with `Authorization: Bearer`. Log out calls `POST /auth/logout`, clears `localStorage`, and returns to login. A protected `401` tries `POST /auth/refresh` once. If refresh fails, the session is cleared and the page opens `/login/`.
+Open `http://127.0.0.1:3001`. Public routes are `/login/` and `/register/`. The directory and `/account/profile/` send you to `/login/` when no access token is stored. `/account/` forwards to `/account/profile/`. Sign in, or register, then the supplier list loads with `Authorization: Bearer`. Log out calls `POST /auth/logout`, clears `localStorage`, and returns to login. A protected `401` tries `POST /auth/refresh` once. If refresh fails, the session is cleared and the page opens `/login/`.
+
+Registration posts optional name, phone, and address with `POST /users`, then signs in with `POST /auth/login`. The profile page reads `GET /auth/me` and saves name, phone, and address with `PUT /profiles/me`.
 
 Demo account after `uv run seed`: `staff@brasaland.com` / `demo-password`.
 

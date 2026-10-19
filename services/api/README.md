@@ -45,7 +45,7 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ## Auth
 
-- `POST /users` — register `{ email, password }`
+- `POST /users` — register `{ email, password, name?, phone?, address? }`
 - `POST /auth/login` — `{ email, password }` → `{ access_token, refresh_token }`
 - `GET /auth/me` — Bearer profile
 - `PUT /profiles/me` — Bearer profile update
