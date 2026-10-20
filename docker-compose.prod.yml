@@ -1,0 +1,51 @@
+# Production stack for the assigned VPS (infra-40 / Phase 4).
+# Usage on the server (from repo root):
+#   cp .env.example .env   # then edit secrets on the server only
+#   docker compose -f docker-compose.prod.yml up --build -d
+#
+# No bind mounts. No Uvicorn --reload. Secrets only via .env (gitignored).
+name: brasaland
+
+services:
+  ui:
+    build:
+      context: ./uis
+      dockerfile: Dockerfile
+    ports:
+      - "${UI_WEBSITE_PORT}:3000"
+      - "${UI_BACKOFFICE_PORT}:3001"
+    env_file:
+      - .env
+    environment:
+      API_INTERNAL_URL: http://api:8000
+    networks:
+      - brasaland-net
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+    ports:
+      - "${API_PORT}:8000"
+    env_file:
+      - .env
+    networks:
+      - brasaland-net
+    restart: unless-stopped
+    command:
+      [
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+      ]
+
+networks:
+  brasaland-net:
+    name: brasaland-net
+    driver: bridge

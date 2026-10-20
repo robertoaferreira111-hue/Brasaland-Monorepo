@@ -1,0 +1,8 @@
+{
+  "name": "brasaland-uis",
+  "private": true,
+  "description": "UI container runtime: serves website (:3000) and backoffice (:3001)",
+  "dependencies": {
+    "http-server": "14.1.1"
+  }
+}

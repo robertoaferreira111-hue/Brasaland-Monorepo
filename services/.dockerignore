@@ -1,0 +1,19 @@
+# Assignment exclusions
+**/__pycache__
+**/*.pyc
+**/*.pyo
+.env*
+**/.env*
+**/tests
+**/*.log
+
+# Local tooling / caches (not needed in image)
+**/.venv
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.git
+**/README.md
+**/TESTING.md
+**/data/*.json
+.gitkeep

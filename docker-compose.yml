@@ -1,0 +1,59 @@
+# Brasaland local stack (infra-40 / Phase 3)
+# Two services: ui (website:3000 + backoffice:3001) and api (FastAPI:8000).
+# Runtime config comes from root .env (see .env.example). Do not commit .env.
+name: brasaland
+
+services:
+  ui:
+    build:
+      context: ./uis
+      dockerfile: Dockerfile
+    ports:
+      - "${UI_WEBSITE_PORT}:3000"
+      - "${UI_BACKOFFICE_PORT}:3001"
+    volumes:
+      # Dev bind mounts — static file changes are served without rebuild
+      - ./uis/website:/app/website
+      - ./uis/backoffice:/app/backoffice
+    env_file:
+      - .env
+    environment:
+      # Container-to-container API base (Compose DNS). Browsers still use host-published ports.
+      API_INTERNAL_URL: http://api:8000
+    networks:
+      - brasaland-net
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+    ports:
+      - "${API_PORT}:8000"
+    volumes:
+      # Dev bind mount — Uvicorn --reload picks up Python changes
+      - ./services/api:/app
+    working_dir: /app
+    env_file:
+      - .env
+    networks:
+      - brasaland-net
+    restart: unless-stopped
+    # Matches Phase 2 image CMD; explicit here for Compose clarity
+    command:
+      [
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload",
+      ]
+
+networks:
+  brasaland-net:
+    name: brasaland-net
+    driver: bridge
