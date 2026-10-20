@@ -8,7 +8,12 @@ function resolveApiBase() {
     const apiHost = hostname.replace(/-\d+(?=\.app\.github\.dev$)/, "-8000");
     return `${protocol}//${apiHost}`;
   }
-  return "http://127.0.0.1:8000";
+  // Local docker/desktop defaults
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return "http://127.0.0.1:8000";
+  }
+  // Same-host production / VPS: UIs on :3000|:3001, API published on :8000
+  return `${protocol}//${hostname}:8000`;
 }
 
 const API_BASE = resolveApiBase();

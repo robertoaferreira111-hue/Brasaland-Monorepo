@@ -2,9 +2,11 @@ node_modules/
 dist/
 .DS_Store
 .next/
+.env
 .env.local
 __pycache__/
 *.pyc
+*.log
 services/api/.venv/
 services/api/.pytest_cache/
 services/api/data/*.json

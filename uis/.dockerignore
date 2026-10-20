@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+.next
+**/.next
+.env*
+**/.env*
+*.log
+**/*.log
+.git
+.gitignore
+README.md
+README.es.md
+**/README.md
+**/README.es.md
