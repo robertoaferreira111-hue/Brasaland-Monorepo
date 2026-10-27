@@ -5,6 +5,8 @@ description = "Brasaland supplier directory API with staff JWT auth"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
+    "jsonschema>=4.23",
+    "psycopg[binary]>=3.2",
     "pydantic>=2",
     "pyjwt>=2.9",
     "tinydb>=4",
@@ -15,7 +17,7 @@ dependencies = [
 seed = "app.seed:main"
 
 [dependency-groups]
-dev = ["httpx>=0.27", "pytest>=8"]
+dev = ["httpx>=0.27", "pgserver>=0.1.4", "pytest>=8"]
 
 [build-system]
 requires = ["hatchling"]

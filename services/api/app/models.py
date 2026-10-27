@@ -1,8 +1,8 @@
-"""Supplier schema and staff auth models."""
+"""Supplier schema, staff auth models, and the telemetry event contract."""
 
 import re
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
@@ -214,3 +214,59 @@ class ProfileResponse(BaseModel):
     name: str = ""
     phone: str = ""
     address: str = ""
+
+
+UUID_PATTERN = (
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}"
+    r"-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+)
+EVENT_NAME_PATTERN = r"^[a-z][a-z0-9]*(_[a-z0-9]+)+$"
+
+
+class TelemetryEvent(BaseModel):
+    """Approved telemetry envelope from docs/telemetry/event-schemas.json."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    eventId: str = Field(pattern=UUID_PATTERN)
+    timestamp: str = Field(min_length=1)
+    sessionId: str = Field(pattern=UUID_PATTERN)
+    userId: str | None
+    event_type: str = Field(pattern=EVENT_NAME_PATTERN)
+    entity_action: str = Field(pattern=EVENT_NAME_PATTERN)
+    schemaVersion: Literal["1.0.0"]
+    requestId: str = Field(pattern=UUID_PATTERN)
+    properties: dict[str, Any]
+
+    @field_validator("timestamp")
+    @classmethod
+    def timestamp_is_utc(cls, value: str) -> str:
+        text = value[:-1] + "+00:00" if value.endswith("Z") else value
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError as exc:
+            raise ValueError("timestamp must be an ISO 8601 UTC date-time") from exc
+        if parsed.utcoffset() != timezone.utc.utcoffset(parsed):
+            raise ValueError("timestamp must be UTC")
+        return value
+
+    @field_validator("userId")
+    @classmethod
+    def user_id_is_not_blank(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("userId must be null or a non-empty opaque id")
+        return value
+
+    @model_validator(mode="after")
+    def entity_action_matches_event_type(self) -> "TelemetryEvent":
+        if self.entity_action != self.event_type:
+            raise ValueError("entity_action must equal event_type")
+        return self
+
+
+class TelemetryBatchResponse(BaseModel):
+    """Counts for one processed envelope. received = stored + rejected."""
+
+    received: int = Field(ge=0)
+    stored: int = Field(ge=0)
+    rejected: int = Field(ge=0)
