@@ -1,5 +1,12 @@
 const session = window.BrasalandSession;
 session.requireSession();
+if (session.hasAccessToken() && window.BrasalandTelemetry) {
+  try {
+    window.BrasalandTelemetry.noteCurrentPage();
+  } catch (_telemetryError) {
+    // The supplier directory still loads.
+  }
+}
 const API_BASE = session.API_BASE;
 
 const CATEGORIES = [

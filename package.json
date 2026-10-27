@@ -5,9 +5,13 @@
   "description": "Brasaland operations data-processing utilities (Milestone 2)",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "typecheck:telemetry": "tsc -p packages/telemetry --noEmit",
+    "test:telemetry": "node --import tsx --test packages/telemetry/tests/telemetry.test.ts packages/telemetry/tests/capture.test.ts packages/telemetry/tests/session-instrumentation.test.mjs",
+    "build:telemetry": "esbuild packages/telemetry/src/backoffice.ts --bundle --format=iife --platform=browser --outfile=uis/backoffice/js/telemetry.js --banner:js=\"/* Generated from packages/telemetry/src/backoffice.ts. */\"",
     "demo": "node --import tsx src/demo.ts"
   },
   "devDependencies": {
+    "esbuild": "^0.25.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }

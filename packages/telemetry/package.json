@@ -1,0 +1,10 @@
+{
+  "name": "@repo/telemetry",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "In-memory Brasaland telemetry client",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

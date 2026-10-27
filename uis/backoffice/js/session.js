@@ -123,7 +123,31 @@ async function tryRefresh() {
   return true;
 }
 
+function reportTelemetry(fn) {
+  const client = window.BrasalandTelemetry;
+  if (!client) {
+    return;
+  }
+  try {
+    fn(client);
+  } catch (_error) {
+    // Telemetry must not change the staff workflow.
+  }
+}
+
+function reportApi(method, path, status, started) {
+  const durationMs =
+    typeof performance !== "undefined" && performance.now ? Math.max(0, performance.now() - started) : 0;
+  reportTelemetry((client) => {
+    if (typeof client.noteApi === "function") {
+      client.noteApi({ method, path: String(path), status, durationMs });
+    }
+  });
+}
+
 async function apiFetch(path, options = {}) {
+  const started = typeof performance !== "undefined" && performance.now ? performance.now() : 0;
+  const method = options.method || "GET";
   const authenticated = options.auth !== false;
   const retryOnUnauthorized = options.retryOnUnauthorized !== false;
   const requestHeaders = new Headers(options.headers || {});
@@ -138,40 +162,61 @@ async function apiFetch(path, options = {}) {
     requestHeaders.set("Content-Type", "application/json");
   }
   const url = String(path).startsWith("http") ? path : `${API_BASE}${path}`;
-  let response = await fetch(url, {
-    method: options.method,
-    body: options.body,
-    headers: requestHeaders,
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method: options.method,
+      body: options.body,
+      headers: requestHeaders,
+    });
+  } catch (error) {
+    reportApi(method, path, 0, started);
+    throw error;
+  }
   if (response.status === 401 && authenticated && retryOnUnauthorized) {
     const refreshed = await tryRefresh();
     if (refreshed) {
       requestHeaders.set("Authorization", `Bearer ${readAccess()}`);
-      response = await fetch(url, {
-        method: options.method,
-        body: options.body,
-        headers: requestHeaders,
-      });
+      try {
+        response = await fetch(url, {
+          method: options.method,
+          body: options.body,
+          headers: requestHeaders,
+        });
+      } catch (error) {
+        reportApi(method, path, 0, started);
+        throw error;
+      }
     }
     if (response.status === 401) {
       clearSession();
       redirectToLogin();
+      reportApi(method, path, 401, started);
       throw new Error("Session expired");
     }
   }
+  reportApi(method, path, response.status, started);
   return response;
 }
 
 async function logout() {
+  reportTelemetry((client) => {
+    if (typeof client.noteLogout === "function") {
+      client.noteLogout();
+    }
+  });
   const token = readAccess();
   clearSession();
   if (token) {
+    const started = typeof performance !== "undefined" && performance.now ? performance.now() : 0;
     try {
-      await fetch(`${API_BASE}/auth/logout`, {
+      const response = await fetch(`${API_BASE}/auth/logout`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
+      reportApi("POST", "/auth/logout", response.status, started);
     } catch (_error) {
+      reportApi("POST", "/auth/logout", 0, started);
       // Local session is already cleared. The login page is the next step.
     }
   }

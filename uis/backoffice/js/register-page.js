@@ -34,11 +34,25 @@ form.addEventListener("submit", async (event) => {
       body: JSON.stringify({ email, password }),
     });
     if (!login.ok) {
+      if (window.BrasalandTelemetry) {
+        try {
+          window.BrasalandTelemetry.noteLoginFailure(login.status);
+        } catch (_telemetryError) {
+          // Registration still shows the API error.
+        }
+      }
       showError(await session.errorText(login));
       return;
     }
     const tokens = await login.json();
     session.saveTokens(tokens.access_token, tokens.refresh_token);
+    if (window.BrasalandTelemetry) {
+      try {
+        window.BrasalandTelemetry.noteLoginSuccess();
+      } catch (_telemetryError) {
+        // The session is already stored.
+      }
+    }
     session.goAfterLogin();
   } catch (_error) {
     showError(`The API is not reachable at ${session.API_BASE}.`);

@@ -1,6 +1,13 @@
 const session = window.BrasalandSession;
 
 session.requireSession();
+if (session.hasAccessToken() && window.BrasalandTelemetry) {
+  try {
+    window.BrasalandTelemetry.noteCurrentPage();
+  } catch (_telemetryError) {
+    // The account page still loads.
+  }
+}
 
 const form = document.getElementById("profile-form");
 const formError = document.getElementById("form-error");

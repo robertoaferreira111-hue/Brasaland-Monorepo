@@ -5,6 +5,7 @@ description = "Brasaland supplier directory API with staff JWT auth"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
+    "jsonschema>=4.23",
     "pydantic>=2",
     "pyjwt>=2.9",
     "tinydb>=4",

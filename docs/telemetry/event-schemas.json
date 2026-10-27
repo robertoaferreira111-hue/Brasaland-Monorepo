@@ -1,0 +1,1131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://brasaland.local/docs/telemetry/event-schemas.json",
+  "title": "Brasaland Telemetry Event Schemas",
+  "description": "JSON Schema draft-07 catalog for Brasaland inventory telemetry. Companion to docs/telemetry/telemetry-plan.md. Mandatory metrics from company-BRIEFING/brasaland-BRIEFING.md. Custom catalog keys use the x- prefix.",
+  "x-schemaVersion": "1.0.0",
+  "definitions": {
+    "iso8601Timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "country": {
+      "type": "string",
+      "enum": [
+        "CO",
+        "US"
+      ]
+    },
+    "currency": {
+      "type": "string",
+      "enum": [
+        "COP",
+        "USD"
+      ]
+    },
+    "productCategory": {
+      "type": "string",
+      "enum": [
+        "protein",
+        "vegetable",
+        "sauce",
+        "beverage",
+        "packaging",
+        "cleaning"
+      ]
+    },
+    "unit": {
+      "type": "string",
+      "enum": [
+        "kg",
+        "unit",
+        "liter"
+      ]
+    },
+    "wasteReason": {
+      "type": "string",
+      "enum": [
+        "expired",
+        "kitchen_error",
+        "theft_suspected"
+      ]
+    },
+    "httpMethod": {
+      "type": "string",
+      "enum": [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE"
+      ]
+    },
+    "opsPage": {
+      "type": "string",
+      "enum": [
+        "login",
+        "inbound_orders",
+        "outbound_orders",
+        "stock",
+        "products",
+        "suppliers",
+        "account"
+      ]
+    },
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "timestamp",
+        "sessionId",
+        "userId",
+        "event_type",
+        "entity_action",
+        "schemaVersion",
+        "requestId",
+        "properties"
+      ],
+      "properties": {
+        "eventId": {
+          "$ref": "#/definitions/uuid",
+          "description": "Unique id per emission"
+        },
+        "timestamp": {
+          "$ref": "#/definitions/iso8601Timestamp"
+        },
+        "sessionId": {
+          "$ref": "#/definitions/uuid",
+          "description": "Opaque session id; never an email"
+        },
+        "userId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Opaque staff user id; null only for pre-auth events"
+        },
+        "event_type": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)+$",
+          "description": "Stable event name in entity_action form"
+        },
+        "entity_action": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)+$",
+          "description": "Must equal event_type; explicit entity_action naming field"
+        },
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "requestId": {
+          "$ref": "#/definitions/uuid"
+        },
+        "properties": {
+          "type": "object",
+          "description": "Allowlisted event payload only"
+        }
+      }
+    },
+    "countryCurrencyConsistent": {
+      "description": "Briefing \u00a76: amounts use location local currency \u2014 CO\u2192COP, US\u2192USD. No FX conversion in telemetry.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "country",
+            "currency"
+          ],
+          "properties": {
+            "country": {
+              "const": "CO"
+            },
+            "currency": {
+              "const": "COP"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "country",
+            "currency"
+          ],
+          "properties": {
+            "country": {
+              "const": "US"
+            },
+            "currency": {
+              "const": "USD"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "x-events": {
+    "inbound_order_created": {
+      "class": "mandatory",
+      "category": "business/inventory",
+      "delivery": "stream",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "inbound_order_created"
+            },
+            "entity_action": {
+              "const": "inbound_order_created"
+            },
+            "properties": {
+              "allOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "location_id",
+                    "country",
+                    "product_id",
+                    "product_category",
+                    "quantity",
+                    "unit",
+                    "currency",
+                    "supplier_id",
+                    "unit_cost",
+                    "inbound_order_id"
+                  ],
+                  "properties": {
+                    "location_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "country": {
+                      "$ref": "#/definitions/country"
+                    },
+                    "product_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "product_category": {
+                      "$ref": "#/definitions/productCategory"
+                    },
+                    "quantity": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "unit": {
+                      "$ref": "#/definitions/unit"
+                    },
+                    "currency": {
+                      "$ref": "#/definitions/currency"
+                    },
+                    "supplier_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "unit_cost": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "inbound_order_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/definitions/countryCurrencyConsistent"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "outbound_order_created": {
+      "class": "mandatory",
+      "category": "business/inventory",
+      "delivery": "stream",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "outbound_order_created"
+            },
+            "entity_action": {
+              "const": "outbound_order_created"
+            },
+            "properties": {
+              "allOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "location_id",
+                    "country",
+                    "product_id",
+                    "product_category",
+                    "quantity",
+                    "unit",
+                    "currency",
+                    "outbound_order_id",
+                    "reason"
+                  ],
+                  "properties": {
+                    "location_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "country": {
+                      "$ref": "#/definitions/country"
+                    },
+                    "product_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "product_category": {
+                      "$ref": "#/definitions/productCategory"
+                    },
+                    "quantity": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "unit": {
+                      "$ref": "#/definitions/unit"
+                    },
+                    "currency": {
+                      "$ref": "#/definitions/currency"
+                    },
+                    "outbound_order_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "reason": {
+                      "type": "string",
+                      "const": "prep_consumption"
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/definitions/countryCurrencyConsistent"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "stock_waste_registered": {
+      "class": "mandatory",
+      "category": "business/inventory",
+      "delivery": "stream",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "stock_waste_registered"
+            },
+            "entity_action": {
+              "const": "stock_waste_registered"
+            },
+            "properties": {
+              "allOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "location_id",
+                    "country",
+                    "product_id",
+                    "product_category",
+                    "quantity",
+                    "unit",
+                    "currency",
+                    "outbound_order_id",
+                    "reason"
+                  ],
+                  "properties": {
+                    "location_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "country": {
+                      "$ref": "#/definitions/country"
+                    },
+                    "product_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "product_category": {
+                      "$ref": "#/definitions/productCategory"
+                    },
+                    "quantity": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "unit": {
+                      "$ref": "#/definitions/unit"
+                    },
+                    "currency": {
+                      "$ref": "#/definitions/currency"
+                    },
+                    "outbound_order_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "reason": {
+                      "$ref": "#/definitions/wasteReason"
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/definitions/countryCurrencyConsistent"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "stock_threshold_triggered": {
+      "class": "mandatory",
+      "category": "business/inventory",
+      "delivery": "stream",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "stock_threshold_triggered"
+            },
+            "entity_action": {
+              "const": "stock_threshold_triggered"
+            },
+            "properties": {
+              "allOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "location_id",
+                    "country",
+                    "product_id",
+                    "product_category",
+                    "quantity",
+                    "unit",
+                    "currency",
+                    "minimum_quantity"
+                  ],
+                  "properties": {
+                    "location_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "country": {
+                      "$ref": "#/definitions/country"
+                    },
+                    "product_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "product_category": {
+                      "$ref": "#/definitions/productCategory"
+                    },
+                    "quantity": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "unit": {
+                      "$ref": "#/definitions/unit"
+                    },
+                    "currency": {
+                      "$ref": "#/definitions/currency"
+                    },
+                    "minimum_quantity": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/definitions/countryCurrencyConsistent"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "direct_stock_edit_rejected": {
+      "class": "mandatory",
+      "category": "business/inventory",
+      "delivery": "stream",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "direct_stock_edit_rejected"
+            },
+            "entity_action": {
+              "const": "direct_stock_edit_rejected"
+            },
+            "properties": {
+              "allOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "location_id",
+                    "country",
+                    "product_id",
+                    "product_category",
+                    "quantity",
+                    "unit",
+                    "currency",
+                    "rejection_code"
+                  ],
+                  "properties": {
+                    "location_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "country": {
+                      "$ref": "#/definitions/country"
+                    },
+                    "product_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "product_category": {
+                      "$ref": "#/definitions/productCategory"
+                    },
+                    "quantity": {
+                      "type": "number"
+                    },
+                    "unit": {
+                      "$ref": "#/definitions/unit"
+                    },
+                    "currency": {
+                      "$ref": "#/definitions/currency"
+                    },
+                    "rejection_code": {
+                      "type": "string",
+                      "const": "direct_edit_forbidden"
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/definitions/countryCurrencyConsistent"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "ingredient_price_variance_detected": {
+      "class": "mandatory",
+      "category": "business/inventory",
+      "delivery": "stream",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "ingredient_price_variance_detected"
+            },
+            "entity_action": {
+              "const": "ingredient_price_variance_detected"
+            },
+            "properties": {
+              "allOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "location_id",
+                    "country",
+                    "product_id",
+                    "product_category",
+                    "quantity",
+                    "unit",
+                    "currency",
+                    "supplier_id",
+                    "unit_cost",
+                    "historical_unit_cost",
+                    "variance_pct",
+                    "variance_threshold_pct",
+                    "inbound_order_id"
+                  ],
+                  "properties": {
+                    "location_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "country": {
+                      "$ref": "#/definitions/country"
+                    },
+                    "product_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "product_category": {
+                      "$ref": "#/definitions/productCategory"
+                    },
+                    "quantity": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "unit": {
+                      "$ref": "#/definitions/unit"
+                    },
+                    "currency": {
+                      "$ref": "#/definitions/currency"
+                    },
+                    "supplier_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "unit_cost": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "historical_unit_cost": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "variance_pct": {
+                      "type": "number"
+                    },
+                    "variance_threshold_pct": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "inbound_order_id": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                {
+                  "$ref": "#/definitions/countryCurrencyConsistent"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "product_validation_failed": {
+      "class": "additional",
+      "category": "errors",
+      "delivery": "stream",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "product_validation_failed"
+            },
+            "entity_action": {
+              "const": "product_validation_failed"
+            },
+            "properties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "error_code",
+                "field",
+                "entity"
+              ],
+              "properties": {
+                "error_code": {
+                  "type": "string",
+                  "enum": [
+                    "missing_required_field",
+                    "invalid_unit",
+                    "invalid_category",
+                    "invalid_quantity",
+                    "invalid_currency",
+                    "invalid_country"
+                  ]
+                },
+                "field": {
+                  "type": "string",
+                  "enum": [
+                    "product_id",
+                    "product_category",
+                    "quantity",
+                    "unit",
+                    "currency",
+                    "country",
+                    "location_id",
+                    "supplier_id",
+                    "reason"
+                  ]
+                },
+                "entity": {
+                  "type": "string",
+                  "enum": [
+                    "product",
+                    "inbound_order",
+                    "outbound_order"
+                  ]
+                },
+                "product_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "location_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "country": {
+                  "$ref": "#/definitions/country"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "user_logged_in": {
+      "class": "additional",
+      "category": "authentication",
+      "delivery": "stream",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "user_logged_in"
+            },
+            "entity_action": {
+              "const": "user_logged_in"
+            },
+            "userId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "properties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "auth_method"
+              ],
+              "properties": {
+                "auth_method": {
+                  "type": "string",
+                  "const": "password"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "user_login_failed": {
+      "class": "additional",
+      "category": "authentication",
+      "delivery": "stream",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "user_login_failed"
+            },
+            "entity_action": {
+              "const": "user_login_failed"
+            },
+            "userId": {
+              "type": "null"
+            },
+            "properties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "error_code",
+                "attempt_bucket"
+              ],
+              "properties": {
+                "error_code": {
+                  "type": "string",
+                  "enum": [
+                    "invalid_credentials",
+                    "validation_error",
+                    "account_locked"
+                  ]
+                },
+                "attempt_bucket": {
+                  "type": "string",
+                  "enum": [
+                    "1",
+                    "2-5",
+                    "6+"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "user_logged_out": {
+      "class": "additional",
+      "category": "authentication",
+      "delivery": "batch",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "user_logged_out"
+            },
+            "entity_action": {
+              "const": "user_logged_out"
+            },
+            "userId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "properties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reason"
+              ],
+              "properties": {
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "user_action",
+                    "token_revoked",
+                    "session_expired"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "page_viewed": {
+      "class": "additional",
+      "category": "navigation",
+      "delivery": "batch",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "page_viewed"
+            },
+            "entity_action": {
+              "const": "page_viewed"
+            },
+            "properties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "page"
+              ],
+              "properties": {
+                "page": {
+                  "$ref": "#/definitions/opsPage"
+                },
+                "referrer_page": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/definitions/opsPage"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "workflow_abandoned": {
+      "class": "additional",
+      "category": "navigation",
+      "delivery": "batch",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "workflow_abandoned"
+            },
+            "entity_action": {
+              "const": "workflow_abandoned"
+            },
+            "properties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "workflow",
+                "step_reached",
+                "duration_ms"
+              ],
+              "properties": {
+                "workflow": {
+                  "type": "string",
+                  "enum": [
+                    "inbound_order_create",
+                    "outbound_order_create",
+                    "waste_register"
+                  ]
+                },
+                "step_reached": {
+                  "type": "string",
+                  "enum": [
+                    "form_opened",
+                    "product_selected",
+                    "quantity_entered",
+                    "review",
+                    "submit_attempted"
+                  ]
+                },
+                "duration_ms": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "location_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "country": {
+                  "$ref": "#/definitions/country"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "api_request_completed": {
+      "class": "additional",
+      "category": "performance",
+      "delivery": "batch",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "api_request_completed"
+            },
+            "entity_action": {
+              "const": "api_request_completed"
+            },
+            "properties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "route_template",
+                "method",
+                "status_code",
+                "duration_ms"
+              ],
+              "properties": {
+                "route_template": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "method": {
+                  "$ref": "#/definitions/httpMethod"
+                },
+                "status_code": {
+                  "type": "integer",
+                  "minimum": 200,
+                  "maximum": 299
+                },
+                "duration_ms": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "api_request_failed": {
+      "class": "additional",
+      "category": "errors",
+      "delivery": "stream",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "api_request_failed"
+            },
+            "entity_action": {
+              "const": "api_request_failed"
+            },
+            "properties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "route_template",
+                "method",
+                "status_code",
+                "error_code",
+                "duration_ms"
+              ],
+              "properties": {
+                "route_template": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "method": {
+                  "$ref": "#/definitions/httpMethod"
+                },
+                "status_code": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 599
+                },
+                "error_code": {
+                  "type": "string",
+                  "enum": [
+                    "unauthorized",
+                    "forbidden",
+                    "not_found",
+                    "validation_error",
+                    "conflict",
+                    "internal_error",
+                    "timeout",
+                    "network_error"
+                  ]
+                },
+                "duration_ms": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "page_load_completed": {
+      "class": "additional",
+      "category": "performance",
+      "delivery": "batch",
+      "allOf": [
+        {
+          "$ref": "#/definitions/envelope"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "const": "page_load_completed"
+            },
+            "entity_action": {
+              "const": "page_load_completed"
+            },
+            "properties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "page",
+                "duration_ms"
+              ],
+              "properties": {
+                "page": {
+                  "$ref": "#/definitions/opsPage"
+                },
+                "duration_ms": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "connection_type": {
+                  "type": "string",
+                  "enum": [
+                    "wifi",
+                    "cellular",
+                    "ethernet",
+                    "unknown"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "x-prohibitedProperties": [
+    "employee_name",
+    "customer_name",
+    "email",
+    "contact_email",
+    "password",
+    "token",
+    "access_token",
+    "refresh_token",
+    "authorization",
+    "notes",
+    "raw_body",
+    "stack_trace"
+  ]
+}
