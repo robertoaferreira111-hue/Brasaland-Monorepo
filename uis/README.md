@@ -26,11 +26,12 @@ Open `http://127.0.0.1:3000`. See [website/README.md](./website/README.md).
 
 ## `backoffice` — supplier directory
 
-Procurement directory for Lucía Fernández, with staff sign-in on the same static app. HTML, CSS, and JavaScript. It calls the supplier API in `services/api`. Supplier routes require a JWT. `/login/` and `/register/` are public. The directory and `/account/profile/` redirect to `/login/` when `localStorage` has no access token. A 401 clears the session and returns to login. The public website navigation is unchanged.
+Procurement directory for Lucía Fernández, with staff sign-in and account management in a Next.js App Router + TypeScript + Tailwind v4 app. It calls the supplier API in `services/api`. Supplier routes require a JWT. Authentication and password-reset pages are public; supplier and account routes are session-protected. A protected 401 attempts a token refresh before clearing the session and returning to login.
 
 ```bash
 cd uis/backoffice
-npx http-server . -p 3001 -a 0.0.0.0
+npm install
+npm run dev
 ```
 
 See [backoffice/README.md](./backoffice/README.md).

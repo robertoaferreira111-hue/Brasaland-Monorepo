@@ -5,26 +5,28 @@
 - Root `CONTEXT.md` is the Brasaland company briefing used by apps (kept as-is; not replaced by the old memory-bank branch rewrite).
 - `Supplier-Directory-CONTEXT.md` documents the supplier schema.
 - Milestone 2 TypeScript utilities under `src/` with root `npm run typecheck` / `npm run demo`.
-- `uis/website/` public static site (Tailwind + Brasa Points form).
-- `services/api/` FastAPI supplier directory with staff JWT auth (PR #6).
-- `uis/backoffice/` supplier desk + staff auth frontend (login, register, profile, session guards) (PR #8).
-- Coding-agent memory bank added on branch `feature/agent-memory-bank-only`: `AGENTS.md`, `.agents/`, `memory-bank/` (this change). Backoffice Tailwind restyle from PR #2 was **not** brought forward.
+- Milestone 3 talent pipeline tracker under `src/` (PR #15).
+- Coding-agent memory bank: `AGENTS.md`, `.agents/`, `memory-bank/` (PR #14).
+- `services/api/` FastAPI supplier directory with staff JWT auth, password reset, and hardened error contract (PRs #6, #16, #17).
+- `pytest-cov` available via API dev deps; coverage: `uv run pytest --cov=app --cov-report=term-missing` (PR #19).
+- `uis/website/` public Next.js App Router site + Brasa Points (PR #18).
+- `uis/backoffice/` Next.js App Router staff desk (supplier directory, session, profile, password flows) (PR #21).
+- Docker Compose rewrite for API + website + backoffice + talent services (PR #20). Superseded static Compose PR #9 closed without merge.
 
-## Intentionally left out of this memory-bank PR
+## Intentionally left out / deferred
 
-- Any `uis/backoffice` Tailwind/`package.json` restyle from `feature/agent-memory-bank`
-- Website visual restyles and submission PNGs from that branch
-- Replacement of root `CONTEXT.md`
-- Docker / Compose (still unmerged elsewhere)
-- Telemetry branches
-- Password-reset / second auth stack work
-- Talent pipeline tracker
+- Telemetry PRs #10–#13 remain open but are **out of scope for this integration**; the developer will redo telemetry from scratch. Close them when restarting that work.
+- Any `uis/backoffice` Tailwind/`package.json` restyle from the old `feature/agent-memory-bank` branch (superseded by the Next.js port).
+- Website visual restyles and submission PNGs from that branch.
+- Replacement of root `CONTEXT.md`.
 
 ## Integration backlog status
 
-1. Auth frontend / memory bank / talent tracker — landed on `main` (earlier stages).
-2. Password-reset port — open as PR #16 (close superseded #7).
-3. Error-handling port — open as PR #17 (close superseded #5).
-4. **Stage 6a (this change):** port `uis/website` to Next.js React pattern — open as website React PR.
-5. Stage 6b: port `uis/backoffice` to the same React pattern (separate PR after 6a merges).
-6. **Stage 7 (this change):** rewrite Docker Compose from PR #9 into separate API, website, backoffice, and talent services for the final React UI shape.
+1. Auth frontend / memory bank / talent tracker — **done** on `main`.
+2. Password-reset port — **merged** as PR #16 (superseded #7 closed).
+3. Error-handling port — **merged** as PR #17 (superseded #5 closed).
+4. Stage 6a website React — **merged** as PR #18.
+5. Stage 6b backoffice React — **merged** as PR #21.
+6. Stage 7 Docker Compose rewrite — **merged** as PR #20 (superseded #9 closed).
+7. Stage 5 gap (pytest-cov) — **merged** as PR #19.
+8. Telemetry — **deferred**; redo from scratch (do not merge #10–#13 into this stack).
