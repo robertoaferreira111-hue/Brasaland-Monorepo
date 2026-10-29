@@ -6,13 +6,14 @@ Staff JWT auth and the supplier directory share this FastAPI app. Supplier route
 
 - `services/api/app/main.py`
 - `services/api/app/models.py` — supplier schema and staff auth models
-- `services/api/app/database.py` — TinyDB tables `suppliers`, `users`, and `refresh_tokens` in `data/suppliers.json`
+- `services/api/app/database.py` — TinyDB tables `suppliers`, `users`, `refresh_tokens`, and `password_reset_tokens`
 - `services/api/app/seed.py`
-- `services/api/app/security.py` — PBKDF2 passwords and PyJWT
+- `services/api/app/security.py` — PBKDF2 passwords, reset-token hashing, and PyJWT
+- `services/api/app/config.py` / `email.py` / `rate_limit.py` / `reset_tokens.py` — password recovery
 - `services/api/app/deps.py` — `current_user_email`
 - `services/api/app/routers/suppliers.py` — protected supplier routes
 - `services/api/app/routers/users.py` — `POST /users`
-- `services/api/app/routers/auth.py` — login, logout, refresh, `/auth/me`
+- `services/api/app/routers/auth.py` — login, logout, refresh, `/auth/me`, forgot/reset/change password
 - `services/api/app/routers/profiles.py` — `PUT /profiles/me`
 
 ## Install
@@ -51,9 +52,12 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - `PUT /profiles/me` — Bearer profile update
 - `POST /auth/logout` — Bearer, revokes refresh tokens
 - `POST /auth/refresh` — `{ refresh_token }` → new token pair
+- `POST /auth/forgot-password` — `{ email }` (same message whether or not the account exists)
+- `POST /auth/reset-password` — `{ token, new_password }`
+- `POST /auth/change-password` — Bearer `{ current_password, new_password }`
 - `/suppliers` — every method requires `Authorization: Bearer <access_token>`
 
-Set `JWT_SECRET` outside local demo use.
+Set `JWT_SECRET` outside local demo use. For recovery email delivery, set `RESEND_API_KEY` (or `SENDGRID_API_KEY`), `EMAIL_FROM`, and `FRONTEND_URL` (see repo `.env.example`).
 
 ## Tests
 

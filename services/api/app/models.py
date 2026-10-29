@@ -222,3 +222,35 @@ class ProfileResponse(BaseModel):
     name: str = ""
     phone: str = ""
     address: str = ""
+
+
+class ForgotPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        email = value.strip()
+        if not EMAIL_PATTERN.match(email):
+            raise ValueError("Enter a valid email (example: name@email.com)")
+        return email.lower()
+
+
+class ResetPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(min_length=1)
+    new_password: str = Field(min_length=1)
+
+
+class ChangePasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=1)
+
+
+class MessageResponse(BaseModel):
+    message: str

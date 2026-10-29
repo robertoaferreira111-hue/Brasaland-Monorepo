@@ -2,6 +2,7 @@
 
 from collections.abc import Iterator
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 from tinydb import Query, TinyDB
@@ -14,6 +15,10 @@ DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "suppliers.j
 SUPPLIERS_TABLE = "suppliers"
 USERS_TABLE = "users"
 REFRESH_TABLE = "refresh_tokens"
+RESET_TOKENS_TABLE = "password_reset_tokens"
+
+# TinyDB's JSON storage is not safe for concurrent writers in one process.
+_db_lock = RLock()
 
 
 def open_db(path: Path | None = None) -> TinyDB:
@@ -27,11 +32,12 @@ def suppliers_table(db: TinyDB) -> Table:
 
 
 def get_table() -> Iterator[Table]:
-    db = open_db()
-    try:
-        yield suppliers_table(db)
-    finally:
-        db.close()
+    with _db_lock:
+        db = open_db()
+        try:
+            yield suppliers_table(db)
+        finally:
+            db.close()
 
 
 def persist_supplier(table: Table, data: dict) -> tuple[int, dict]:
@@ -109,27 +115,45 @@ def refresh_table(db: TinyDB) -> Table:
     return db.table(REFRESH_TABLE)
 
 
+def reset_tokens_table(db: TinyDB) -> Table:
+    return db.table(RESET_TOKENS_TABLE)
+
+
 def get_users_table() -> Iterator[Table]:
-    db = open_db()
-    try:
-        yield users_table(db)
-    finally:
-        db.close()
+    with _db_lock:
+        db = open_db()
+        try:
+            yield users_table(db)
+        finally:
+            db.close()
 
 
 def get_refresh_table() -> Iterator[Table]:
-    db = open_db()
-    try:
-        yield refresh_table(db)
-    finally:
-        db.close()
+    with _db_lock:
+        db = open_db()
+        try:
+            yield refresh_table(db)
+        finally:
+            db.close()
+
+
+def get_reset_tokens_table() -> Iterator[Table]:
+    with _db_lock:
+        db = open_db()
+        try:
+            yield reset_tokens_table(db)
+        finally:
+            db.close()
 
 
 def find_user(table: Table, email: str) -> dict[str, Any] | None:
-    rows = table.search(Query().email == email)
+    rows = table.search(Query().email == email.strip().lower())
     if not rows:
         return None
-    return dict(rows[0])
+    row = rows[0]
+    data = dict(row)
+    data["id"] = row.doc_id
+    return data
 
 
 def profile_from_user(user: dict[str, Any]) -> ProfileResponse:
@@ -164,6 +188,28 @@ def authenticate_user(table: Table, email: str, password: str) -> dict[str, Any]
     if not verify_password(password, user["password_salt"], user["password_digest"]):
         return None
     return user
+
+
+def update_user_password(
+    table: Table, user_id: int, new_password: str
+) -> dict[str, Any] | None:
+    current = table.get(doc_id=user_id)
+    if current is None:
+        return None
+    digest, salt = hash_password(new_password)
+    table.update(
+        {
+            "password_digest": digest,
+            "password_salt": salt,
+        },
+        doc_ids=[user_id],
+    )
+    updated = table.get(doc_id=user_id)
+    if updated is None:
+        return None
+    data = dict(updated)
+    data["id"] = user_id
+    return data
 
 
 def update_profile(

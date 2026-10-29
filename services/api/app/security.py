@@ -42,6 +42,14 @@ def verify_password(password: str, salt: str, digest: str) -> bool:
     return secrets.compare_digest(candidate, digest)
 
 
+def generate_reset_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
 def create_token(
     *,
     subject: str,

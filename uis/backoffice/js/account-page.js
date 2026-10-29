@@ -8,6 +8,9 @@ const formSuccess = document.getElementById("form-success");
 const pageStatus = document.getElementById("page-status");
 
 document.getElementById("directory-link").href = session.appHref("index.html");
+document.getElementById("change-password-link").href = session.appHref(
+  "account/change-password/",
+);
 document.getElementById("logout").addEventListener("click", () => {
   session.logout();
 });
