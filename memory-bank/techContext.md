@@ -29,8 +29,11 @@ There is no root workspace file and no `workspaces` field in the root `package.j
 | `uv run uvicorn app.main:app --host 0.0.0.0 --port 8000` | `services/api/` | Run API (add `--reload` for local dev) |
 | `uv run seed` | `services/api/` | Idempotent supplier + demo staff seed |
 | `uv run pytest` | `services/api/` | API test suite (`tests/`) |
+| `uv run pytest --cov=app --cov-report=term-missing` | `services/api/` | Same suite with pytest-cov terminal report |
+| `docker compose up --build` | Repo root | Local multi-service stack (`docker-compose.yml`) |
+| `docker compose -f docker-compose.prod.yml up --build` | Repo root | Production-oriented Compose (`docker-compose.prod.yml`) |
 
-There is still **no** root lint script and **no** Docker Compose on `main` (containerization remains on an unmerged branch). Do not invent `npm run lint` or assume Compose is available until it lands on `main`.
+There is still **no** root lint script. Do not invent `npm run lint`. Docker Compose is on `main` (PR #20): services cover API, website, backoffice, and talent.
 
 ## What exists on main today (post AUTH PRs)
 
@@ -38,7 +41,8 @@ There is still **no** root lint script and **no** Docker Compose on `main` (cont
 
 - Entry: `app.main:app`
 - Health: `GET /health`
-- Staff auth: `POST /users`, `POST /auth/login`, `GET /auth/me`, `PUT /profiles/me`, `POST /auth/logout`, `POST /auth/refresh`
+- Staff auth: `POST /users`, `POST /auth/login`, `GET /auth/me`, `PUT /profiles/me`, `POST /auth/logout`, `POST /auth/refresh`, password-reset routes (`forgot` / `reset` / change-password)
+- Shared error contract + storage hardening (PR #17)
 - Suppliers: CRUD-style routes under `/suppliers` (Bearer access token required)
 - Storage: TinyDB JSON under `services/api/data/` (gitignored runtime data)
 - Demo staff after seed: documented in `uis/backoffice/README.md` / API README
@@ -82,4 +86,4 @@ From the root `README.md`:
 
 1. **Package manager vs Dev Container.** Devcontainer enables pnpm/uv; day-to-day lockfiles are npm at root/`uis/website`, and uv for `services/api`.
 2. **`apps/` versus `uis/`.** Some package READMEs mention `apps/`; the live tree uses `uis/`.
-3. **Docker on main.** Compose artifacts may exist on other branches; they are not part of current `main` until merged.
+3. **Docker Desktop.** Compose files are on `main`; image builds still need a running Docker engine locally.
