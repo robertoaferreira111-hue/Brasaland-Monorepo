@@ -25,7 +25,7 @@ Detalle en [website/README.md](./website/README.md).
 
 ## `backoffice` — directorio de proveedores
 
-Directorio de compras de Lucía Fernández, con inicio de sesión del personal en la misma aplicación estática. HTML, CSS y JavaScript. Llama a la API de proveedores en `services/api`. Las rutas de proveedores exigen un JWT. `/login/` y `/register/` son públicas. El directorio y `/account/` redirigen a `/login/` si no hay token de acceso en `localStorage`. Un 401 borra la sesión y vuelve al inicio de sesión. La navegación del sitio público no cambia.
+Directorio de compras de Lucía Fernández, con inicio de sesión del personal en la misma aplicación estática. HTML, CSS y JavaScript. Llama a la API de proveedores en `services/api`. Las rutas de proveedores exigen un JWT. `/login/` y `/register/` son públicas. El directorio y `/account/profile/` redirigen a `/login/` si no hay token de acceso en `localStorage`. Un 401 borra la sesión y vuelve al inicio de sesión. La navegación del sitio público no cambia.
 
 ```bash
 cd uis/backoffice

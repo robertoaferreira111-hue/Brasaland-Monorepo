@@ -1,7 +1,7 @@
 const session = window.BrasalandSession;
 
 session.redirectIfAuthenticated();
-document.getElementById("register-link").href = session.hrefWithApi("../register/");
+document.getElementById("register-link").href = session.appHref("register/");
 
 const form = document.getElementById("login-form");
 const formError = document.getElementById("form-error");

@@ -1,6 +1,6 @@
 const session = window.BrasalandSession;
 session.requireSession();
-const API_BASE = session.API_BASE;
+const supplierApi = session.API_BASE;
 
 const CATEGORIES = [
   "carne",
@@ -234,7 +234,7 @@ async function loadSuppliers() {
     params.set("category", categoryFilter.value);
   }
   const query = params.toString();
-  const url = query ? `${API_BASE}/suppliers?${query}` : `${API_BASE}/suppliers`;
+  const url = query ? `${supplierApi}/suppliers?${query}` : `${supplierApi}/suppliers`;
 
   try {
     const response = await session.apiFetch(url);
@@ -251,7 +251,7 @@ async function loadSuppliers() {
     renderSuppliers({ failed: true });
     showMessage(
       listError,
-      `The supplier API is not reachable at ${API_BASE}.`,
+      `The supplier API is not reachable at ${supplierApi}.`,
     );
   }
 }
@@ -274,7 +274,7 @@ async function updateRate(form) {
   showMessage(error, "");
   button.disabled = true;
   try {
-    const response = await session.apiFetch(`${API_BASE}/suppliers/${supplierId}/rate`, {
+    const response = await session.apiFetch(`${supplierApi}/suppliers/${supplierId}/rate`, {
       method: "PATCH",
       body: JSON.stringify({ rate_per_unit: rate }),
     });
@@ -286,7 +286,7 @@ async function updateRate(form) {
     showMessage(formSuccess, "Rate updated.");
     showMessage(formError, "");
   } catch (_error) {
-    showMessage(error, `The supplier API is not reachable at ${API_BASE}.`);
+    showMessage(error, `The supplier API is not reachable at ${supplierApi}.`);
   } finally {
     button.disabled = false;
   }
@@ -299,7 +299,7 @@ async function updateStatus(button) {
   showMessage(error, "");
   button.disabled = true;
   try {
-    const response = await session.apiFetch(`${API_BASE}/suppliers/${supplierId}/status`, {
+    const response = await session.apiFetch(`${supplierApi}/suppliers/${supplierId}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status: nextStatus }),
     });
@@ -312,7 +312,7 @@ async function updateStatus(button) {
     showMessage(formSuccess, `Status updated to ${updated.status}.`);
     showMessage(formError, "");
   } catch (_error) {
-    showMessage(error, `The supplier API is not reachable at ${API_BASE}.`);
+    showMessage(error, `The supplier API is not reachable at ${supplierApi}.`);
   } finally {
     button.disabled = false;
   }
@@ -351,7 +351,7 @@ async function registerSupplier(event) {
 
   registerSubmit.disabled = true;
   try {
-    const response = await session.apiFetch(`${API_BASE}/suppliers`, {
+    const response = await session.apiFetch(`${supplierApi}/suppliers`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -367,7 +367,7 @@ async function registerSupplier(event) {
     showMessage(formSuccess, `${created.name} was registered.`);
     await loadSuppliers();
   } catch (_error) {
-    showMessage(formError, `The supplier API is not reachable at ${API_BASE}.`);
+    showMessage(formError, `The supplier API is not reachable at ${supplierApi}.`);
   } finally {
     registerSubmit.disabled = false;
   }
@@ -418,7 +418,7 @@ supplierRows.addEventListener("click", (event) => {
   updateStatus(button);
 });
 
-document.getElementById("account-link").href = session.hrefWithApi("account/");
+document.getElementById("account-link").href = session.appHref("account/profile/");
 document.getElementById("logout").addEventListener("click", () => {
   session.logout();
 });

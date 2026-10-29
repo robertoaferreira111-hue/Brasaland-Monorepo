@@ -303,10 +303,16 @@ tr.is-suspended {
   gap: 0.45rem;
 }
 
-.row-error {
+.row-error,
+.field-error {
   margin: 0;
   color: var(--error);
   font-size: 0.85rem;
+}
+
+.optional {
+  color: var(--muted);
+  font-weight: 400;
 }
 
 .message {

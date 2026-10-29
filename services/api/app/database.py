@@ -149,9 +149,9 @@ def create_user(table: Table, payload: RegisterUser) -> ProfileResponse:
         "email": payload.email,
         "password_digest": digest,
         "password_salt": salt,
-        "name": "",
-        "phone": "",
-        "address": "",
+        "name": payload.name,
+        "phone": payload.phone,
+        "address": payload.address,
     }
     table.insert(document)
     return profile_from_user(document)

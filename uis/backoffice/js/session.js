@@ -1,3 +1,12 @@
+function appRoot() {
+  if (document.currentScript && document.currentScript.src) {
+    return new URL("../", document.currentScript.src);
+  }
+  return new URL("./", window.location.href);
+}
+
+const APP_ROOT = appRoot();
+
 function resolveApiBase() {
   const override = new URLSearchParams(window.location.search).get("api");
   if (override) {
@@ -43,41 +52,50 @@ function currentQuery() {
   return new URLSearchParams(window.location.search);
 }
 
-function hrefWithApi(path) {
+function appHref(path, extraParams) {
+  const url = new URL(path, APP_ROOT);
   const api = currentQuery().get("api");
-  if (!api) {
-    return path;
+  if (api) {
+    url.searchParams.set("api", api);
   }
-  const join = path.includes("?") ? "&" : "?";
-  return `${path}${join}api=${encodeURIComponent(api)}`;
+  if (extraParams) {
+    for (const [key, value] of extraParams.entries()) {
+      url.searchParams.set(key, value);
+    }
+  }
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function hrefWithApi(path) {
+  return appHref(path);
+}
+
+function loginPathname() {
+  return new URL("login/", APP_ROOT).pathname;
 }
 
 function redirectToLogin() {
   const params = new URLSearchParams();
-  const api = currentQuery().get("api");
-  if (api) {
-    params.set("api", api);
-  }
   const next = `${window.location.pathname}${window.location.search}`;
-  if (!next.startsWith("/login")) {
+  if (!next.startsWith(loginPathname())) {
     params.set("next", next);
   }
-  const query = params.toString();
-  window.location.replace(query ? `/login/?${query}` : "/login/");
+  window.location.replace(appHref("login/", params));
 }
 
 function goAfterLogin() {
   const next = currentQuery().get("next");
+  const loginPath = loginPathname();
   if (
     next &&
     next.startsWith("/") &&
     !next.startsWith("//") &&
-    !next.startsWith("/login")
+    !next.startsWith(loginPath)
   ) {
     window.location.replace(next);
     return;
   }
-  window.location.replace(hrefWithApi("/"));
+  window.location.replace(appHref("index.html"));
 }
 
 function requireSession() {
@@ -202,6 +220,7 @@ window.BrasalandSession = {
   saveTokens,
   clearSession,
   hrefWithApi,
+  appHref,
   requireSession,
   redirectIfAuthenticated,
   apiFetch,
