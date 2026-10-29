@@ -10,7 +10,7 @@ There is no root workspace file and no `workspaces` field in the root `package.j
 | --- | --- |
 | Repo root, package name `brasaland-operations` | TypeScript `^5.8.2` and `tsx` `^4.19.3` (devDependencies). Milestone 2 utilities under `src/`. |
 | `tsconfig.json` | Target `ES2022`, `module` `ESNext`, `strict` true, `noEmit` true, `rootDir` `src`, `include` `src/**/*.ts`. Excludes `uis`, `packages`, `agents`, `skills`. |
-| `uis/website`, package name `brasaland-website` | Static HTML + Tailwind `3.4.17` compiled to `styles.css`. See `uis/website/README.md`. |
+| `uis/website`, package name `brasaland-website` | Next.js App Router + React 19 + Tailwind v4 public site (Stage 6 port). See `uis/website/README.md`. |
 | `uis/backoffice` | Static HTML/CSS/JS staff desk (supplier directory + auth UI). Has `README.md`, `styles.css`, `js/session.js`, login/register/account/profile pages. **No** `package.json` on current `main` (Tailwind CLI restyle from the old memory-bank branch was not merged). |
 | `services/api`, package name `brasaland-supplier-api` | FastAPI + Pydantic + PyJWT + TinyDB + Uvicorn. Python `>=3.12`. Managed with **uv** (`pyproject.toml` + `uv.lock`). |
 | `packages/shared/package.json` | `@repo/shared-types`. Empty scripts. |
@@ -22,8 +22,8 @@ There is no root workspace file and no `workspaces` field in the root `package.j
 | --- | --- | --- |
 | `npm run typecheck` | Repo root | `tsc --noEmit` on `src/` only |
 | `npm run demo` | Repo root | `node --import tsx src/demo.ts` |
-| `npm run build:css` | `uis/website/` | Tailwind build for the public site |
-| `npx http-server . -p 3000 -a 0.0.0.0` | `uis/website/` | Documented in `uis/website/README.md` |
+| `npm run dev` / `npm run build` / `npm run start` | `uis/website/` | Next.js public site on port **3000** |
+| `npm run verify:validation` | `uis/website/` | Brasa Points validation parity checks |
 | `npx http-server . -p 3001 -a 0.0.0.0` | `uis/backoffice/` | Documented in `uis/backoffice/README.md` (port **3001**) |
 | `uv sync` | `services/api/` | Install API + dev deps from lockfile |
 | `uv run uvicorn app.main:app --host 0.0.0.0 --port 8000` | `services/api/` | Run API (add `--reload` for local dev) |
@@ -51,7 +51,7 @@ There is still **no** root lint script and **no** Docker Compose on `main` (cont
 
 ### `uis/website`
 
-- Public static site + Brasa Points form; Tailwind via `npm run build:css`
+- Public Next.js site (`/`, `/application`) + Brasa Points form; validation in `lib/brasaPoints.ts`
 
 ## Monorepo folder conventions
 

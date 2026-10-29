@@ -18,7 +18,7 @@ Do these steps in order. Do not commit if a step fails.
 
 1. **Confirm scope against `memory-bank/progress.md`.** The change must match the task you are finishing. If it needs a protected path, stop and ask.
 2. **Run `npm run typecheck` from the repo root** when the change touches `src/` or root TypeScript config. The script is `tsc --noEmit` and covers `src/` only.
-3. **If the change touches `uis/website/`, run `npm run build:css` from `uis/website/`.**
+3. **If the change touches `uis/website/`, run `npm run build` from `uis/website/`** (Next.js production build).
 4. **If the change touches `services/api/`, run `uv run pytest` from `services/api/`** (after `uv sync` if deps changed).
 5. **Update `memory-bank/progress.md`** when the change finishes a tracked milestone or integration stage.
 6. **Review the diff for unrelated changes.** Stage only files that belong to the task.
