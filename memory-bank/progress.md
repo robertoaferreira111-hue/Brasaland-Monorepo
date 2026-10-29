@@ -20,10 +20,11 @@
 - Password-reset / second auth stack work
 - Talent pipeline tracker
 
-## Planned next (integration backlog — not started here)
+## Integration backlog status
 
-1. Close original PR #2 after this PR merges (superseded for the memory-bank portion).
-2. Land Milestone 3 talent tracker onto `main`.
-3. Port password-reset onto the single auth stack on `main`.
-4. Error-handling audit rebase.
-5. Later: React ports and Docker rewrite once UIs settle.
+1. Auth frontend / memory bank / talent tracker — landed on `main` (earlier stages).
+2. Password-reset port — open as PR #16 (close superseded #7).
+3. Error-handling port — open as PR #17 (close superseded #5).
+4. **Stage 6a (this change):** port `uis/website` to Next.js React pattern — open as website React PR.
+5. Stage 6b: port `uis/backoffice` to the same React pattern (separate PR after 6a merges).
+6. Stage 7: rewrite Docker Compose (from PR #9) for React UI builds — after both UI ports.

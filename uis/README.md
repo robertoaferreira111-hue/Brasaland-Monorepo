@@ -14,14 +14,15 @@ Organize `uis/` by **different concerns** — each subfolder covers a distinct a
 
 ## `website` — Brasaland public site
 
-Milestone 1 corporate website. Static HTML, Tailwind utility classes, and `validation.js`. Base language: English. Facts come from the root `CONTEXT.md`.
+Milestone 1 corporate website. Next.js App Router + TypeScript + Tailwind (same React pattern as the talent pipeline tracker). Base language: English. Facts come from the root `CONTEXT.md`.
 
 ```bash
 cd uis/website
-npx http-server . -p 3000 -a 0.0.0.0
+npm install
+npm run dev
 ```
 
-See [website/README.md](./website/README.md).
+Open `http://127.0.0.1:3000`. See [website/README.md](./website/README.md).
 
 ## `backoffice` — supplier directory
 

@@ -1,38 +1,53 @@
 # Brasaland website
 
-Static public site for Milestone 1. Facts, field order, and messages come from the root `CONTEXT.md`.
+Public Next.js site for Milestone 1, ported to the React conventions established by `uis/talent-pipeline-tracker/`. Facts, field order, and messages come from the root `CONTEXT.md`.
 
-## Run
-
-From this folder:
+## Setup
 
 ```bash
-npx http-server . -p 3000 -a 0.0.0.0
-```
-
-Open `http://127.0.0.1:3000`.
-
-## Files
-
-- `index.html` — landing page, including the Restaurant JSON-LD.
-- `application.html` — Brasa Points registration form.
-- `validation.js` — real-time checks, blocked submit, focus on the first invalid field, and Clear.
-- `styles.css` — precompiled, minified Tailwind stylesheet. The file starts with a comment that it is Tailwind CLI output.
-- `story.svg` and `favicon.svg` — the story illustration and icon.
-
-Styling is Tailwind utility classes only. The pages load `styles.css`. They do not load the Tailwind browser runtime.
-
-## Rebuild the stylesheet
-
-`tailwind.css` is the Tailwind CLI input. It contains only the Tailwind directives. `tailwind.config.js` scans `index.html` and `application.html`, so the stylesheet includes only the utility classes already in those pages.
-
-This command is dev-time only. Serving the site does not run it.
-
-```bash
+cd uis/website
 npm install
-npm run build:css
+npm run dev
 ```
 
-`npm run build:css` runs `tailwindcss -i ./tailwind.css -o ./styles.css --minify`.
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000).
 
-Locations, Menu, and Contact are sections on the landing page. The header links to those sections. Brasa Points opens the registration form. No dishes or prices are listed, because the briefing does not provide them.
+## Scripts
+
+```bash
+npm run dev                 # Next.js on port 3000
+npm run build               # production build
+npm run start               # serve production build on 3000
+npm run lint                # ESLint
+npx tsc --noEmit            # TypeScript check (scripts/ excluded)
+npm run verify:validation   # Brasa Points validation parity checks
+```
+
+## Folder structure
+
+```
+app/                 # App Router pages (`/`, `/application`)
+components/          # SiteHeader, SiteFooter, BrasaPointsForm, …
+lib/                 # Pure Brasa Points validation (`brasaPoints.ts`)
+public/              # favicon.svg, story.svg
+scripts/             # Dev-only verification (not imported by the app)
+```
+
+## Routes
+
+| Route | Purpose |
+| --- | --- |
+| `/` | Landing page (story, locations, menu, Brasa Points CTA, contact) + Restaurant JSON-LD |
+| `/application` | Brasa Points registration form |
+
+## Behaviour preserved from the static site
+
+- Landing copy, sections, and JSON-LD
+- Brasa Points form validation (full name, email, phone with country-gated country codes, city cascading from country, 18+ DOB, terms)
+- Phone format checks wait until a country is selected
+- Blocked submit focuses the first invalid field; Clear resets the form
+- Success panel after a valid submit
+
+## Styling
+
+Tailwind CSS v4 via `@tailwindcss/postcss` (same stack as the talent pipeline tracker). Fraunces + Source Sans 3 via `next/font`.
