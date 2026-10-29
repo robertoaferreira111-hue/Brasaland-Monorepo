@@ -1,0 +1,99 @@
+name: brasaland
+
+services:
+  api:
+    build:
+      context: ./services/api
+      target: development
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
+    env_file:
+      - .env
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./services/api:/app
+      - api-venv:/app/.venv
+    networks:
+      - brasaland-net
+    restart: unless-stopped
+
+  website:
+    build:
+      context: ./uis/website
+      target: development
+      args:
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    environment:
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    ports:
+      - "${WEBSITE_PORT:-3000}:3000"
+    volumes:
+      - ./uis/website:/app
+      - website-node-modules:/app/node_modules
+      - website-next:/app/.next
+    depends_on:
+      - api
+    networks:
+      - brasaland-net
+    restart: unless-stopped
+
+  backoffice:
+    build:
+      context: ./uis/backoffice
+      target: development
+      args:
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    environment:
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    ports:
+      - "${BACKOFFICE_PORT:-3001}:3001"
+    volumes:
+      - ./uis/backoffice:/app
+      - backoffice-node-modules:/app/node_modules
+      - backoffice-next:/app/.next
+    depends_on:
+      - api
+    networks:
+      - brasaland-net
+    restart: unless-stopped
+
+  talent:
+    build:
+      context: ./uis/talent-pipeline-tracker
+      target: development
+      args:
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    environment:
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    ports:
+      - "${TALENT_PORT:-3002}:3002"
+    volumes:
+      - ./uis/talent-pipeline-tracker:/app
+      - talent-node-modules:/app/node_modules
+      - talent-next:/app/.next
+    depends_on:
+      - api
+    networks:
+      - brasaland-net
+    restart: unless-stopped
+
+volumes:
+  api-venv:
+  website-node-modules:
+  website-next:
+  backoffice-node-modules:
+  backoffice-next:
+  talent-node-modules:
+  talent-next:
+
+networks:
+  brasaland-net:
+    name: brasaland-net
+    driver: bridge

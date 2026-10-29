@@ -27,4 +27,4 @@
 3. Error-handling port — open as PR #17 (close superseded #5).
 4. **Stage 6a (this change):** port `uis/website` to Next.js React pattern — open as website React PR.
 5. Stage 6b: port `uis/backoffice` to the same React pattern (separate PR after 6a merges).
-6. Stage 7: rewrite Docker Compose (from PR #9) for React UI builds — after both UI ports.
+6. **Stage 7 (this change):** rewrite Docker Compose from PR #9 into separate API, website, backoffice, and talent services for the final React UI shape.

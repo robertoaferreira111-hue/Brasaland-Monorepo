@@ -1,0 +1,67 @@
+name: brasaland
+
+services:
+  api:
+    build:
+      context: ./services/api
+      target: production
+    env_file:
+      - .env
+    ports:
+      - "${API_PORT:-8000}:8000"
+    networks:
+      - brasaland-net
+    restart: unless-stopped
+
+  website:
+    build:
+      context: ./uis/website
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    environment:
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    ports:
+      - "${WEBSITE_PORT:-3000}:3000"
+    depends_on:
+      - api
+    networks:
+      - brasaland-net
+    restart: unless-stopped
+
+  backoffice:
+    build:
+      context: ./uis/backoffice
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    environment:
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    ports:
+      - "${BACKOFFICE_PORT:-3001}:3001"
+    depends_on:
+      - api
+    networks:
+      - brasaland-net
+    restart: unless-stopped
+
+  talent:
+    build:
+      context: ./uis/talent-pipeline-tracker
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    environment:
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:8000}"
+    ports:
+      - "${TALENT_PORT:-3002}:3002"
+    depends_on:
+      - api
+    networks:
+      - brasaland-net
+    restart: unless-stopped
+
+networks:
+  brasaland-net:
+    name: brasaland-net
+    driver: bridge
