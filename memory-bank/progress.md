@@ -15,7 +15,7 @@
 
 ## Intentionally left out / deferred
 
-- Telemetry PRs #10–#13 remain open but are **out of scope for this integration**; the developer will redo telemetry from scratch. Close them when restarting that work.
+- Telemetry PRs #10–#13 were **closed without merge** so telemetry can be redone from scratch on the current stack.
 - Any `uis/backoffice` Tailwind/`package.json` restyle from the old `feature/agent-memory-bank` branch (superseded by the Next.js port).
 - Website visual restyles and submission PNGs from that branch.
 - Replacement of root `CONTEXT.md`.
@@ -29,4 +29,4 @@
 5. Stage 6b backoffice React — **merged** as PR #21.
 6. Stage 7 Docker Compose rewrite — **merged** as PR #20 (superseded #9 closed).
 7. Stage 5 gap (pytest-cov) — **merged** as PR #19.
-8. Telemetry — **deferred**; redo from scratch (do not merge #10–#13 into this stack).
+8. Telemetry — **deferred**; #10–#13 closed; redo from scratch on new branches/PRs.
