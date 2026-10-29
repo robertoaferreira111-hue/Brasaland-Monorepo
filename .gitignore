@@ -3,6 +3,7 @@ dist/
 .DS_Store
 .next/
 .env.local
+.env*.local
 __pycache__/
 *.pyc
 services/api/.venv/
