@@ -2,6 +2,7 @@ const session = window.BrasalandSession;
 
 session.redirectIfAuthenticated();
 document.getElementById("register-link").href = session.appHref("register/");
+document.getElementById("forgot-link").href = session.appHref("forgot-password/");
 
 const form = document.getElementById("login-form");
 const formError = document.getElementById("form-error");
