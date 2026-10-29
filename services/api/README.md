@@ -59,6 +59,16 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 Set `JWT_SECRET` outside local demo use. For recovery email delivery, set `RESEND_API_KEY` (or `SENDGRID_API_KEY`), `EMAIL_FROM`, and `FRONTEND_URL` (see repo `.env.example`).
 
+## Error contract
+
+Supplier and unexpected failures return `{ "detail": ... }` without paths or tracebacks:
+
+- `422` — FastAPI validation `detail` array
+- `404` — `"Supplier not found"`
+- `500` — stable strings such as `"Storage unavailable"`, `"Stored supplier data is invalid"`, or `"An unexpected error occurred"`
+
+Corrupt rows are skipped on list; a corrupt single-record read returns `500`.
+
 ## Tests
 
 ```bash
