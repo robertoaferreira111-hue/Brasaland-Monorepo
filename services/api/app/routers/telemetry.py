@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from app.telemetry_event import TelemetryEvent
+from app.telemetry_mapping import map_event_to_row
 from app.telemetry_store import TelemetryBatchStore, get_telemetry_store
 
 router = APIRouter(prefix="/telemetry", tags=["telemetry"])
@@ -34,7 +35,7 @@ def ingest_events(
     body: TelemetryEnvelope,
     store: Annotated[TelemetryBatchStore, Depends(get_telemetry_store)],
 ) -> TelemetryIngestResult:
-    accepted: list[dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     rejected = 0
     for raw in body.events:
         try:
@@ -42,11 +43,10 @@ def ingest_events(
         except ValidationError:
             rejected += 1
             continue
-        accepted.append(event.model_dump(mode="json"))
-    if accepted:
-        store.insert_batch(accepted)
+        rows.append(map_event_to_row(event))
+    stored = store.insert_batch(rows) if rows else 0
     return TelemetryIngestResult(
         received=len(body.events),
-        stored=len(accepted),
+        stored=stored,
         rejected=rejected,
     )

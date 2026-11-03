@@ -1,7 +1,7 @@
-"""TelemetryEvent validation against docs/telemetry/event-schemas.json.
+"""TelemetryEvent validation against the packaged telemetry schema.
 
-The class did not exist in this service. Field rules come from that schema.
-The schema file is not modified.
+Field rules match docs/telemetry/event-schemas.json. The production image
+loads the copy packaged next to this module, not the docs tree.
 """
 
 from __future__ import annotations
@@ -14,12 +14,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-_SCHEMA_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "docs"
-    / "telemetry"
-    / "event-schemas.json"
-)
+_SCHEMA_PATH = Path(__file__).resolve().parent / "telemetry_event_schema.json"
 _UUID = re.compile(
     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
     r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"

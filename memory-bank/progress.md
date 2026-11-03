@@ -29,4 +29,4 @@
 5. Stage 6b backoffice React — **merged** as PR #21.
 6. Stage 7 Docker Compose rewrite — **merged** as PR #20 (superseded #9 closed).
 7. Stage 5 gap (pytest-cov) — **merged** as PR #19.
-8. Telemetry — **deferred**; #10–#13 closed; redo from scratch on new branches/PRs.
+8. Telemetry — plan/schemas on `main` (#23); storage ingest on `feature/telemetry-event-ingest` (Supabase `telemetry_events`, bulk REST insert, per-event reject counts). Capture of mandatory business events still deferred until inventory screens exist.
