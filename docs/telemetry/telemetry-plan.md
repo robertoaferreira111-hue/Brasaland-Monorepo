@@ -99,7 +99,7 @@ Every event is a JSON object with `additionalProperties: false`. Validate instan
 
 | Field | Required | Type | Rule |
 | --- | --- | --- | --- |
-| `eventId` | yes | string, UUID | Idempotency key. New UUID per emission. |
+| `eventId` | yes | string, UUID | Idempotency key. `POST /telemetry/events` stores this value as `telemetry_events.id`. The same UUID delivered again does not insert a second row. |
 | `timestamp` | yes | string, ISO 8601 | Offset required (`Z` or `±hh:mm`). Date-only values are invalid. |
 | `sessionId` | yes | UUID string or `null` | UUID when a staff session exists. `null` when it does not. Not the refresh-token `jti`. |
 | `userId` | yes | opaque string or `null` | Pattern `^[A-Za-z0-9_-]{8,}$` when present. Never an email, name, phone, or address. |
@@ -397,7 +397,7 @@ Directory categories, verified in `services/api/app/models.py`: `carne`, `verdur
 
 - Emit only after the business outcome is known.
 - Publish at-least-once.
-- Consumers dedupe on `eventId`.
+- `POST /telemetry/events` dedupes on `eventId` by storing it as `telemetry_events.id`. A repeat is not a second row and is not an error.
 - Retry up to 5 times with exponential backoff. That count is a proposal, not a measured requirement.
 - Then dead-letter the payload, still keyed by `eventId`.
 - A telemetry failure does not roll back a business write that already succeeded, and does not turn a rejection into a success.

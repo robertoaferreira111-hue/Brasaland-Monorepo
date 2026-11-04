@@ -36,6 +36,7 @@ def ingest_events(
     store: Annotated[TelemetryBatchStore, Depends(get_telemetry_store)],
 ) -> TelemetryIngestResult:
     rows: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
     rejected = 0
     for raw in body.events:
         try:
@@ -43,7 +44,11 @@ def ingest_events(
         except ValidationError:
             rejected += 1
             continue
-        rows.append(map_event_to_row(event))
+        row = map_event_to_row(event)
+        if row["id"] in seen_ids:
+            continue
+        seen_ids.add(row["id"])
+        rows.append(row)
     stored = store.insert_batch(rows) if rows else 0
     return TelemetryIngestResult(
         received=len(body.events),

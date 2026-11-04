@@ -8,13 +8,13 @@ Column names and types come from the Storage reference solution.
 - `level` ← `error` for catalogue failure events, otherwise `info`
 - `value` ← `properties.quantity` or `properties.error_count` when present
 - `message` ← `entity_action`
+- `id` ← `event.eventId` (required UUID). A repeat of that id does not
+  insert a second row.
 - `tags` ← `event.properties` only (plan allowlists; `location_id` / `country`
   stay here for later rollups)
-- `id` is omitted so `gen_random_uuid()` supplies it
 
-Envelope fields `eventId`, `sessionId`, `userId`, `schemaVersion`, and
-`requestId` are not copied into `tags`. The plan does not list them as
-analytics dimensions in `tags`.
+Envelope fields `sessionId`, `userId`, `schemaVersion`, and `requestId` are
+not copied into `tags`. `eventId` is stored as `id`, not inside `tags`.
 """
 
 from __future__ import annotations
@@ -52,10 +52,11 @@ def _metric_value(properties: dict[str, Any]) -> int | float | None:
 
 
 def map_event_to_row(event: TelemetryEvent) -> dict[str, Any]:
-    """One row. `id` is omitted so the database default supplies it."""
+    """One row. `id` is the producer `eventId`."""
     properties = dict(event.properties)
     level = "error" if event.event_type in _ERROR_EVENT_TYPES else "info"
     return {
+        "id": event.eventId,
         "timestamp": event.timestamp,
         "service": SERVICE_NAME,
         "event_type": event.event_type,

@@ -1,7 +1,9 @@
 """Bulk insert of telemetry_events rows through the Supabase REST API.
 
-One POST to /rest/v1/telemetry_events sends every accepted row. The service-role
-key stays on the server.
+One POST to /rest/v1/telemetry_events sends the accepted rows. The primary key
+is the producer event id. `resolution=ignore-duplicates` keeps a second
+delivery of that id from inserting another row. The service-role key stays on
+the server.
 """
 
 from __future__ import annotations
@@ -42,11 +44,12 @@ class SupabaseTelemetryStore(TelemetryBatchStore):
             try:
                 response = client.post(
                     f"{self._url}/rest/v1/{_TABLE}",
+                    params={"on_conflict": "id"},
                     headers={
                         "apikey": self._key,
                         "Authorization": f"Bearer {self._key}",
                         "Content-Type": "application/json",
-                        "Prefer": "return=representation",
+                        "Prefer": "resolution=ignore-duplicates,return=representation",
                     },
                     json=rows,
                 )

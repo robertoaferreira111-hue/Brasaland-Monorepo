@@ -70,11 +70,14 @@ limit 20;
 
 ## Mapping notes
 
+- `id` is the producer `eventId`. The schema requires that value to be a UUID, which matches the `telemetry_events.id` column. A second delivery of the same `eventId`, in one batch or a later batch, does not insert another row and does not return an error.
+- `received` is the number of events in the request. `rejected` is the number that fail validation, including a missing or non-UUID `eventId`. `stored` is the number of rows newly inserted by that request. A repeated valid `eventId` is not rejected and is not included in `stored`.
 - `tags` is the event `properties` object only (allowlist keys from
   `docs/telemetry/telemetry-plan.md`).
-- Envelope fields `eventId`, `sessionId`, `userId`, `schemaVersion`, and
-  `requestId` are not copied into `tags`. The plan’s analytics dimensions
-  for rollups are `location_id`, `country`, and `timestamp`.
+- Envelope fields `sessionId`, `userId`, `schemaVersion`, and `requestId`
+  are not copied into `tags`. `eventId` is stored as `id`, not inside `tags`.
+  The plan’s analytics dimensions for rollups are `location_id`, `country`,
+  and `timestamp`.
 - `service` is the constant `api` (this writer).
 - `message` is `entity_action`.
 - `level` is `error` for failure events in the catalogue, otherwise `info`.

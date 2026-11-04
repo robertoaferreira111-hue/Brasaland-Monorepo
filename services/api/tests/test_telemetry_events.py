@@ -42,10 +42,18 @@ def _login_failed() -> dict[str, Any]:
 class RecordingStore(TelemetryBatchStore):
     def __init__(self) -> None:
         self.batches: list[list[dict[str, Any]]] = []
+        self.rows_by_id: dict[str, dict[str, Any]] = {}
 
     def insert_batch(self, events: list[dict[str, Any]]) -> int:
         self.batches.append(list(events))
-        return len(events)
+        inserted = 0
+        for row in events:
+            event_id = row["id"]
+            if event_id in self.rows_by_id:
+                continue
+            self.rows_by_id[event_id] = row
+            inserted += 1
+        return inserted
 
 
 class FailingStore(TelemetryBatchStore):
@@ -85,7 +93,7 @@ def test_all_valid_batch_is_one_insert(client: TestClient, store: RecordingStore
     assert row["service"] == "api"
     assert row["level"] == "error"
     assert row["tags"] == {"outcome": "invalid_credentials"}
-    assert "id" not in row
+    assert row["id"] == first["eventId"]
     assert "eventId" not in row
 
 
@@ -240,6 +248,7 @@ def test_row_mapping_for_business_and_technical_events() -> None:
     assert inbound["level"] == "info"
     assert inbound["value"] == 12.5
     assert inbound["message"] == "inbound_order.created"
+    assert inbound["id"] == _inbound_order()["eventId"]
     assert inbound["tags"]["country"] == "CO"
     assert inbound["tags"]["location_id"] == "loc_co_01"
     assert "eventId" not in inbound["tags"]
@@ -250,6 +259,7 @@ def test_row_mapping_for_business_and_technical_events() -> None:
     assert technical["value"] is None
     assert technical["service"] == "api"
     assert set(inbound) == {
+        "id",
         "timestamp",
         "service",
         "event_type",
@@ -282,8 +292,10 @@ def test_supabase_store_inserts_the_batch_once() -> None:
     assert len(seen) == 1
     request = seen[0]
     assert request.url.path == "/rest/v1/telemetry_events"
+    assert request.url.params["on_conflict"] == "id"
     assert request.headers["apikey"] == "service-role-key"
     assert request.headers["authorization"] == "Bearer service-role-key"
+    assert "resolution=ignore-duplicates" in request.headers["prefer"]
     assert json.loads(request.content) == rows
 
 
@@ -296,6 +308,82 @@ def test_supabase_store_failure_does_not_return_a_count() -> None:
     store = SupabaseTelemetryStore("https://example.supabase.co", "service-role-key", client)
     with pytest.raises(StorageError):
         store.insert_batch([{"event_type": "staff_login_failed"}])
+
+
+def test_duplicate_event_id_in_one_batch_stores_one_row(
+    client: TestClient, store: RecordingStore
+) -> None:
+    first = _login_failed()
+    second = _login_failed()
+    second["timestamp"] = "2026-11-02T22:01:00Z"
+    response = client.post("/telemetry/events", json={"events": [first, second]})
+    assert response.status_code == 200
+    assert response.json() == {"received": 2, "stored": 1, "rejected": 0}
+    assert list(store.rows_by_id) == [_EVENT_ID]
+    assert store.rows_by_id[_EVENT_ID]["id"] == _EVENT_ID
+    assert len(store.batches) == 1
+    assert len(store.batches[0]) == 1
+
+
+def test_same_event_id_across_batches_stays_one_row(
+    client: TestClient, store: RecordingStore
+) -> None:
+    first = client.post("/telemetry/events", json={"events": [_login_failed()]})
+    second = client.post("/telemetry/events", json={"events": [_login_failed()]})
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == {"received": 1, "stored": 1, "rejected": 0}
+    assert second.json() == {"received": 1, "stored": 0, "rejected": 0}
+    assert list(store.rows_by_id) == [_EVENT_ID]
+
+
+def test_mixed_batch_of_new_and_repeated_events(
+    client: TestClient, store: RecordingStore
+) -> None:
+    client.post("/telemetry/events", json={"events": [_login_failed()]})
+    repeated = _login_failed()
+    fresh = _login_failed()
+    fresh["eventId"] = "7c8d3b21-8f3e-4d2b-8a1f-2b3c4d5e6f70"
+    response = client.post(
+        "/telemetry/events",
+        json={"events": [repeated, fresh, repeated]},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"received": 3, "stored": 1, "rejected": 0}
+    assert set(store.rows_by_id) == {_EVENT_ID, fresh["eventId"]}
+
+
+def test_invalid_event_id_is_still_rejected(
+    client: TestClient, store: RecordingStore
+) -> None:
+    response = client.post(
+        "/telemetry/events",
+        json={"events": [_login_failed(), {"eventId": "not-a-uuid"}, _login_failed()]},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"received": 3, "stored": 1, "rejected": 1}
+    assert list(store.rows_by_id) == [_EVENT_ID]
+
+
+def test_repeated_id_from_supabase_is_not_an_error() -> None:
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        body = json.loads(request.content)
+        if calls["n"] == 1:
+            return httpx.Response(201, json=body)
+        return httpx.Response(201, json=[])
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    store = SupabaseTelemetryStore(
+        "https://example.supabase.co",
+        "service-role-key",
+        client,
+    )
+    row = {"id": _EVENT_ID, "event_type": "staff_login_failed"}
+    assert store.insert_batch([row]) == 1
+    assert store.insert_batch([row]) == 0
 
 
 def test_migration_declares_eight_columns_and_three_indexes() -> None:

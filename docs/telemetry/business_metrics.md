@@ -19,7 +19,7 @@ The **Weekly Location Cost & Waste Report** is for Mariana Restrepo (CEO) and Fe
 - Currency conversion: none. COP and USD rows appear side by side and are never summed into one amount.
 - Destination: `reporting.weekly_location_performance`.
 
-The source identity prerequisite is a stable producer `eventId` persisted as `telemetry_events.id` and reused on transmission retries. The current generic capture adapter generates a fresh ID per write, so inventory capture must satisfy this prerequisite before `count(distinct id)` or source deduplication is reliable.
+The source identity prerequisite is a stable producer `eventId` persisted as `telemetry_events.id` and reused on transmission retries. `POST /telemetry/events` does that: a valid `eventId` is stored as `id`, and a repeat does not insert another row. `services/api/app/telemetry.py` still generates a fresh id on each best-effort write and does not use the producer `eventId`. Inventory emitters are still absent, so `count(distinct id)` is reliable only for events that arrived through the ingest route.
 
 ## KPI definitions
 
