@@ -13,6 +13,7 @@
 - `uis/backoffice/` Next.js App Router staff desk (supplier directory, session, profile, password flows) (PR #21).
 - Docker Compose rewrite for API + website + backoffice + talent services (PR #20). Superseded static Compose PR #9 closed without merge.
 - Telemetry capture, Pandas technical analysis, `GET /telemetry/report`, and backoffice telemetry dashboard (PR #25).
+- Telemetry batch ingest `POST /telemetry/events` into Supabase `telemetry_events` (ported from PR #24 onto current `main`). Capture of mandatory inventory events is still deferred.
 - Business performance pipeline design for the Weekly Location Cost & Waste Report under `data/pipelines/` and `docs/telemetry/`.
 
 ## Intentionally left out / deferred
@@ -34,3 +35,4 @@
 7. Stage 5 gap (pytest-cov) — **merged** as PR #19.
 8. Telemetry technical report — **merged** as PR #25 (capture, Pandas analysis, `GET /telemetry/report` + 60s cache, auth failure metric, backoffice `/telemetry` dashboard).
 9. Business performance pipeline Part 1 design — **complete** on `main`: `company-BRIEFING.md`, root `PIPELINE_DESIGN.md` (Phases 1–3), `data/pipelines/PIPELINE_DESIGN.md`, `docs/telemetry/business_metrics.md`, `docs/telemetry/PREFECT_DESIGN.md`, and `services/reporting/API_DESIGN.md`.
+10. Telemetry storage ingest — ported from PR #24 onto current `main`: `POST /telemetry/events`, eight-column migration file, and evidence screenshots. `GET /telemetry/report` is unchanged. The append-only SQL file stays proposed and is not applied.
