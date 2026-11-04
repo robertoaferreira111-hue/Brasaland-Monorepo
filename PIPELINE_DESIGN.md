@@ -1,6 +1,6 @@
-# Phase 1 — Current-State Analysis
+# Brasaland Business Performance Pipeline Design
 
-Status: repository-verified design documentation. This file makes no runtime, schema, migration, dependency, endpoint, or deployment change.
+Status: repository-verified Phase 1 and Phase 2 design documentation. This file makes no runtime, schema, migration, dependency, endpoint, or deployment change.
 
 ## 1. Scope and evidence
 
@@ -264,4 +264,219 @@ Before implementation:
 
 The repository has a working best-effort technical telemetry path and engineering report, but it does not yet have the source completeness, business transformations, durable reporting destination, orchestration, or API contracts implemented for the Weekly Location Cost & Waste Report. The verified current state supports designing that pipeline; it does not support claiming that the business report can run today.
 
-The detailed future design remains in [`data/pipelines/PIPELINE_DESIGN.md`](data/pipelines/PIPELINE_DESIGN.md). This Phase 1 deliverable introduces no implementation change.
+The detailed implementation-oriented design remains in [`data/pipelines/PIPELINE_DESIGN.md`](data/pipelines/PIPELINE_DESIGN.md). Phase 1 introduces no implementation change.
+
+## 10. Phase 2 — Business question and objectives
+
+**Business question:** For each Brasaland location in Colombia and Florida, how much did it spend and waste during the most recently completed ISO week, how large was waste relative to purchases, and how often did stockouts or abnormal ingredient-price alerts occur?
+
+The deliverable is the **Weekly Location Cost & Waste Report**. Its audience is Mariana Restrepo (CEO) and Felipe Guerrero (Operations Director). It supports four decisions:
+
+1. compare location spending and identify where purchasing concentrates;
+2. prioritize waste audits using monetary loss and waste efficiency;
+3. review replenishment where threshold crossings indicate service risk; and
+4. intervene with suppliers when abnormal price alerts recur.
+
+This connects to Brasaland's objective of replacing delayed phone calls and weekly spreadsheets with centralized, Monday-morning operational evidence. Required measurements are Purchase Cost per Location, Waste Cost per Location, Waste Ratio, Stockout Frequency, and Price Alert Frequency.
+
+The business question and destination below come from the Business Performance Pipeline briefing supplied for this project. The corresponding `company-BRIEFING.md` remains absent from the repository, as recorded in section 1.
+
+## 11. KPI definitions
+
+All KPIs use one completed UTC ISO week: Monday `00:00:00` inclusive through the next Monday exclusive. Reporting runs weekly on Monday morning. The aggregation grain is one row per `(location_id, week_start)`; `country` and `currency` are carried dimensions. COP and USD are never converted or combined.
+
+### 11.1 Purchase Cost per Location
+
+- **Definition:** Cost of ingredients received by one location during the week.
+- **Formula:** `sum(quantity * unit_cost)`.
+- **Source event:** `inbound_order_created`.
+- **Source fields:** `id`, `timestamp`, `tags.location_id`, `tags.country`, `tags.quantity`, `tags.unit_cost`, `tags.currency`.
+- **Dimensions:** location, country, ISO week, currency.
+- **Unit:** local currency amount, `COP` or `USD`.
+- **Destination:** `total_purchase_cost`.
+- **Limitation:** the approved schema defines `unit_cost`, but no runtime inventory emitter proves live availability or unit compatibility.
+
+### 11.2 Waste Cost per Location
+
+- **Definition:** Monetary value lost through expired product, kitchen error, or suspected theft at one location during the week.
+- **Formula:** `sum(quantity * unit_cost)`.
+- **Source event:** `stock_waste_registered`.
+- **Source fields:** `id`, `timestamp`, `tags.location_id`, `tags.country`, `tags.quantity`, `tags.unit_cost`, `tags.currency`, `tags.reason`.
+- **Dimensions:** location, country, ISO week, currency; reason is retained for audit but is not destination grain.
+- **Unit:** local currency amount, `COP` or `USD`.
+- **Destination:** `total_waste_cost`.
+- **Limitation:** `unit_cost` is present in the approved event design but not proven in runtime capture; valuation uses event-time cost, not replacement cost.
+
+### 11.3 Waste Ratio
+
+- **Definition:** Share of weekly purchase cost lost as waste.
+- **Formula:** `total_waste_cost / total_purchase_cost`; the briefing requires `0` when purchase cost is `0`.
+- **Sources:** the purchase and waste aggregates above.
+- **Dimensions:** location, country, ISO week, currency.
+- **Unit:** decimal ratio; `0.072` means `7.2%`.
+- **Destination:** `waste_ratio`.
+- **Limitation:** a zero denominator result does not prove efficiency and must be interpreted with `total_purchase_cost`; country/currency conflicts invalidate the row.
+
+### 11.4 Stockout Frequency
+
+- **Definition:** Number of threshold-crossing events for a location during the week.
+- **Formula:** `count(distinct id)` for valid `stock_threshold_triggered` events.
+- **Source fields:** `id`, `timestamp`, `tags.location_id`, `tags.country`, `tags.currency`.
+- **Dimensions:** location, country, ISO week.
+- **Unit:** event count.
+- **Destination:** `stockout_events_count`.
+- **Limitation:** accuracy requires one event per threshold crossing and stable producer identity; no runtime inventory emitter exists.
+
+### 11.5 Price Alert Frequency
+
+- **Definition:** Number of abnormal ingredient-price variance alerts for a location during the week.
+- **Formula:** `count(distinct id)` for valid `ingredient_price_variance_detected` events.
+- **Source fields:** `id`, `timestamp`, `tags.location_id`, `tags.country`, `tags.currency`.
+- **Dimensions:** location, country, ISO week.
+- **Unit:** event count.
+- **Destination:** `price_alert_events_count`.
+- **Limitation:** accuracy depends on an upstream historical-price baseline, alert threshold, and stable producer identity; none is runtime-proven in this repository.
+
+The full metric contract is [`docs/telemetry/business_metrics.md`](docs/telemetry/business_metrics.md).
+
+## 12. Extraction architecture
+
+### 12.1 Source and filters
+
+The read-only source is Supabase `public.telemetry_events`. Because no database DDL or live integration test is checked in, database types cannot be verified and are not guessed:
+
+| Column | Implemented application representation | Database type |
+| --- | --- | --- |
+| `id` | UUID-formatted string generated by capture and used as the row identifier | Unverified; DDL required |
+| `timestamp` | ISO 8601 string parsed as a UTC datetime | Unverified; DDL required |
+| `event_type` | String | Unverified; DDL required |
+| `tags` | Object on write; repository/analysis accepts an object or JSON-encoded object string | Unverified; DDL required |
+
+Extraction filters `event_type` to:
+
+1. `inbound_order_created`;
+2. `outbound_order_created`;
+3. `stock_waste_registered`;
+4. `stock_threshold_triggered`; and
+5. `ingredient_price_variance_detected`.
+
+`outbound_order_created` is context for volume and collection checks, not a v1 KPI input. The timestamp predicate is half-open: `timestamp >= window_start` and `timestamp < window_end`.
+
+The approved closed payload contract must be validated in full before selecting KPI fields:
+
+| Event type | Required `tags` fields |
+| --- | --- |
+| `inbound_order_created` | `location_id`, `country`, `supplier_id`, `product_id`, `product_category`, `quantity`, `unit`, `currency`, `unit_cost` |
+| `outbound_order_created` | `location_id`, `country`, `product_id`, `product_category`, `quantity`, `unit`, `currency` |
+| `stock_waste_registered` | `location_id`, `country`, `product_id`, `product_category`, `quantity`, `unit`, `currency`, `unit_cost`, `reason` |
+| `stock_threshold_triggered` | `location_id`, `country`, `product_id`, `product_category`, `quantity`, `unit`, `currency`, `threshold_quantity` |
+| `ingredient_price_variance_detected` | `location_id`, `country`, `supplier_id`, `product_id`, `product_category`, `quantity`, `unit`, `currency`, `unit_cost`, `historical_unit_cost`, `variance_ratio`, `threshold_ratio` |
+
+### 12.2 Time, incrementality, and batches
+
+- Source timestamps are parsed as timezone-aware UTC.
+- ISO week assignment uses event time, not receipt or processing time.
+- The scheduled window ends at Monday `00:00 UTC` and rereads a 14-day overlap, recomputing the prior two complete weeks so late arrivals correct aggregates.
+- The successful upper bound is the watermark; it advances only after load and reconciliation succeed.
+- First runs and historical backfills require explicit bounded start/end values.
+- Extraction uses keyset pages ordered by `(timestamp ASC, id ASC)` with a proposed configurable default `batch_size = 500`. After each full page, the next predicate is `timestamp > last_timestamp OR (timestamp = last_timestamp AND id > last_id)`, still bounded by `timestamp < window_end`; a short page ends extraction. The current repository orders only by timestamp and has no pagination, so the ID tie-breaker, cursor predicate, and limit are required implementation additions.
+- Stable producer `eventId` must be persisted as `telemetry_events.id` and reused on delivery retries before `id` can be a reliable deduplication key.
+- If a future mutable source is introduced, it must expose stable primary key plus `updated_at`; extraction then uses a composite `(updated_at, primary_key)` watermark and recomputes affected weeks.
+
+The extraction output is an immutable, run-scoped collection containing source `id`, UTC `timestamp`, `event_type`, parsed `tags`, source-window bounds, and extracted/duplicate counts.
+
+## 13. Transformation architecture
+
+The approved root event schema contains envelope fields that runtime persistence does not store, including `sessionId`, `userId`, `entity_action`, `schemaVersion`, and `requestId`. The pipeline therefore cannot honestly reconstruct or revalidate the complete envelope from `telemetry_events`. Full root-`oneOf` validation is an upstream inventory-capture prerequisite. A run must fail source-readiness checks when that validation/version guarantee is absent.
+
+For fields that are persisted, transformation validates `id` and `timestamp` plus `tags` against the exact event-specific `properties` definition in [`docs/telemetry/event-schemas.json`](docs/telemetry/event-schemas.json). That includes `additionalProperties: false`, JSON types, identifier patterns, country/category/reason enums, unit limits, positive quantities and money, nonnegative threshold quantities, numeric variance ratios, and positive threshold ratios.
+
+For each extracted event:
+
+1. validate a parseable UTC timestamp and recognized event type;
+2. apply the complete closed event-specific property schema before selecting the KPI subset in section 11;
+3. normalize `country`/`currency` to the allowed pairs `CO`/`COP` and `US`/`USD`;
+4. validate positive `quantity` and `unit_cost` for cost events;
+5. deduplicate by stable source `id`, failing on conflicting payloads for one ID;
+6. assign the UTC ISO Monday;
+7. calculate purchase or waste line cost with decimal arithmetic;
+8. filter `outbound_order_created` from KPI aggregation after retaining its audit count;
+9. group by `location_id`, `country`, `week_start`, and `currency`; and
+10. calculate the five destination fields.
+
+Missing `tags`, required values, timestamps, or cost inputs are not coerced to zero. An invalid KPI-bearing event fails transformation before any requested week is published. A malformed context-only outbound event may be rejected and counted without altering KPI values. Country/currency conflict fails the run.
+
+An absent location is not interpreted as zero because the repository has no authoritative location registry. Until that dependency exists, output coverage is explicitly observed locations only.
+
+## 14. Loading architecture
+
+The exact briefing destination is:
+
+```sql
+create table reporting.weekly_location_performance (
+  id uuid primary key default gen_random_uuid(),
+  location_id text not null,
+  country text not null,
+  week_start date not null,
+  total_purchase_cost numeric not null default 0,
+  total_waste_cost numeric not null default 0,
+  waste_ratio numeric not null default 0,
+  stockout_events_count integer not null default 0,
+  price_alert_events_count integer not null default 0,
+  currency text not null,
+  computed_at timestamptz not null default now(),
+  unique (location_id, week_start)
+);
+```
+
+This DDL is documentation only. No migration or table is created in Phase 2.
+
+- **Schema/table:** `reporting.weekly_location_performance`.
+- **Primary key:** generated `id`.
+- **Business uniqueness:** `(location_id, week_start)`.
+- **Grain:** one location and completed UTC ISO week.
+- **Load behavior:** one transaction for the complete requested window; `INSERT ... ON CONFLICT (location_id, week_start) DO UPDATE` replaces every KPI, country, currency, and `computed_at`.
+- **History:** prior weeks remain; a late-data overlap or bounded backfill deterministically replaces only affected weekly rows.
+- **Currency:** no conversion and no cross-currency aggregate.
+
+A proposed `reporting.pipeline_runs` table records source bounds, affected weeks, counts, status, and version. It has a logical operational relationship to the weekly rows through `affected_weeks` and timestamps; the authoritative destination DDL has no `run_id` foreign key, so this design does not invent one.
+
+## 15. Phase 2 ETL diagram
+
+```mermaid
+flowchart LR
+    subgraph extractStage [Extraction]
+        Source["public.telemetry_events (read only)"]
+        Select["Select id, timestamp, event_type, tags"]
+        Filter["Five event types + bounded UTC overlap"]
+        Batch["Page and deduplicate by stable id"]
+        Source --> Select --> Filter --> Batch
+    end
+
+    subgraph transformStage [Transformation]
+        Validate["Validate payload, time, country, currency, costs"]
+        Normalize["Assign UTC ISO week and decimal line costs"]
+        Aggregate["Aggregate five KPIs by location and week"]
+        Batch --> Validate --> Normalize --> Aggregate
+    end
+
+    subgraph loadStage [Loading]
+        Upsert["Transactional upsert on location_id + week_start"]
+        Destination["reporting.weekly_location_performance"]
+        RunLog["reporting.pipeline_runs metadata"]
+        Aggregate --> Upsert --> Destination
+        Upsert --> RunLog
+    end
+```
+
+Extraction reads raw telemetry without mutation. Transformation owns business rules. Loading writes only to `reporting`; it never writes to `telemetry_events`.
+
+## 16. Phase 2 boundaries and conclusion
+
+- Existing `services/telemetry/analysis.py` and `GET /telemetry/report` remain technical capabilities and are unchanged.
+- Pure business validation and KPI calculations belong under future `data/process`.
+- Pipeline orchestration and source/destination access belong under future `data/pipelines`.
+- Future `services/reporting` routes are thin adapters mounted into the existing FastAPI/JWT stack.
+- No Prefect code, pipeline code, endpoint, dependency, migration, or table is implemented in this phase.
+
+Phase 2 provides a traceable design from Brasaland's weekly management question through source events, verified runtime columns, proposed business fields, deterministic KPI formulas, ETL stages, and the exact briefing destination. Runtime implementation remains blocked on the inventory emitters, stable event identity, authoritative location registry, live Supabase DDL, and approved operational configuration already listed in section 8.
