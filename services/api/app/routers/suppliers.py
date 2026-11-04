@@ -6,7 +6,7 @@ import logging
 from collections.abc import Iterator
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import ValidationError
 from tinydb.table import Table
 
@@ -34,6 +34,11 @@ from app.models import (
     Supplier,
     SupplierCreate,
     SupplierResponse,
+)
+from app.telemetry import (
+    emit_supplier_created,
+    emit_supplier_rate_changed,
+    emit_supplier_status_changed,
 )
 
 logger = logging.getLogger(__name__)
@@ -97,10 +102,20 @@ def _require_response(supplier_id: int, document: dict) -> SupplierResponse:
 def create_supplier(
     payload: SupplierCreate,
     table: Annotated[Table, Depends(get_suppliers_table)],
+    background_tasks: BackgroundTasks,
 ) -> SupplierResponse:
     try:
         doc_id, document = persist_supplier(table, payload.model_dump())
-        return _require_response(doc_id, document)
+        response = _require_response(doc_id, document)
+        background_tasks.add_task(
+            emit_supplier_created,
+            supplier_id=doc_id,
+            country=response.country,
+            currency=response.currency,
+            categories=list(response.categories),
+            status=response.status,
+        )
+        return response
     except StorageError as exc:
         raise _storage_unavailable() from exc
 
@@ -145,7 +160,15 @@ def patch_rate(
     supplier_id: int,
     payload: RateUpdate,
     table: Annotated[Table, Depends(get_suppliers_table)],
+    background_tasks: BackgroundTasks,
 ) -> SupplierResponse:
+    try:
+        current = get_supplier_document(table, supplier_id)
+    except StorageError as exc:
+        raise _storage_unavailable() from exc
+    if current is None:
+        raise _missing()
+    previous_rate = float(current["rate_per_unit"])
     try:
         document = update_supplier_rate(table, supplier_id, payload.rate_per_unit)
     except StorageError as exc:
@@ -155,7 +178,17 @@ def patch_rate(
         raise _stored_data_invalid() from exc
     if document is None:
         raise _missing()
-    return _require_response(supplier_id, document)
+    response = _require_response(supplier_id, document)
+    background_tasks.add_task(
+        emit_supplier_rate_changed,
+        supplier_id=supplier_id,
+        country=response.country,
+        currency=response.currency,
+        categories=list(response.categories),
+        previous_rate=previous_rate,
+        new_rate=float(response.rate_per_unit),
+    )
+    return response
 
 
 @router.patch("/{supplier_id}/status", response_model=SupplierResponse)
@@ -163,7 +196,15 @@ def patch_status(
     supplier_id: int,
     payload: StatusUpdate,
     table: Annotated[Table, Depends(get_suppliers_table)],
+    background_tasks: BackgroundTasks,
 ) -> SupplierResponse:
+    try:
+        current = get_supplier_document(table, supplier_id)
+    except StorageError as exc:
+        raise _storage_unavailable() from exc
+    if current is None:
+        raise _missing()
+    previous_status = str(current["status"])
     try:
         document = update_supplier_status(table, supplier_id, payload.status)
     except StorageError as exc:
@@ -173,7 +214,15 @@ def patch_status(
         raise _stored_data_invalid() from exc
     if document is None:
         raise _missing()
-    return _require_response(supplier_id, document)
+    response = _require_response(supplier_id, document)
+    background_tasks.add_task(
+        emit_supplier_status_changed,
+        supplier_id=supplier_id,
+        country=response.country,
+        previous_status=previous_status,
+        new_status=response.status,
+    )
+    return response
 
 
 @router.delete("/{supplier_id}", response_model=SupplierResponse)

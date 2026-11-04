@@ -4,7 +4,11 @@ import { logout } from "@/lib/session";
 import { useState } from "react";
 import ApiLink from "./ApiLink";
 
-export default function SiteHeader({ current }: { current?: "directory" | "account" | "password" }) {
+export default function SiteHeader({
+  current,
+}: {
+  current?: "directory" | "account" | "password" | "telemetry";
+}) {
   const [open, setOpen] = useState(false);
   return (
     <header className="site-header">
@@ -16,6 +20,7 @@ export default function SiteHeader({ current }: { current?: "directory" | "accou
       </div>
       <nav id="site-nav" className={`site-nav ${open ? "is-open" : ""}`} aria-label="Primary">
         <ApiLink href="/" aria-current={current === "directory" ? "page" : undefined}>Supplier directory</ApiLink>
+        <ApiLink href="/telemetry" aria-current={current === "telemetry" ? "page" : undefined}>Telemetry</ApiLink>
         <ApiLink href="/account/profile" aria-current={current === "account" ? "page" : undefined}>Account</ApiLink>
         {current === "password" && <ApiLink href="/account/change-password" aria-current="page">Change password</ApiLink>}
         <button className="nav-logout" type="button" onClick={() => void logout()}>Log out</button>

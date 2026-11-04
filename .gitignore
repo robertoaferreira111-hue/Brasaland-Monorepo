@@ -9,5 +9,6 @@ dist/
 __pycache__/
 *.pyc
 services/api/.venv/
+services/telemetry/.venv/
 services/api/.pytest_cache/
 services/api/data/*.json
