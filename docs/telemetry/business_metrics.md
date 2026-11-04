@@ -110,96 +110,26 @@ The destination unique key is `(location_id, week_start)`.
 
 ## Reporting API contracts
 
-These routes are proposed under `services/reporting/`. That module is mounted into the existing `services/api` FastAPI application and reuses its staff JWT/session dependencies; it is not a second API or auth stack. The routes remain separate from the unchanged technical `GET /telemetry/report`.
+Full Phase 5 request, response, coexistence, duplicate-trigger, date-range, dimension-filter, and error contracts live in [`../../services/reporting/API_DESIGN.md`](../../services/reporting/API_DESIGN.md). Summary:
 
-### GET `/reporting/pipeline-runs/latest`
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/reporting/pipeline-runs/latest` | Most recent run identifier, status, timestamps, and error information. |
+| `POST` | `/reporting/pipeline-runs` | Manual or backfill trigger with lease-based duplicate protection. |
+| `GET` | `/reporting/weekly-location-performance` | KPI query over `reporting.weekly_location_performance` with week date range and optional `location_id` / `country` filters. |
 
-Returns status and metadata for the most recent business-performance run. Proposed service code calls `get_latest_pipeline_run()` from `data/pipelines/business_performance`.
+These routes are proposed under `services/reporting/`. That module is mounted into the existing `services/api` FastAPI application and reuses its staff JWT/session dependencies; it is not a second API or auth stack. `GET /telemetry/report` remains the separate, unchanged technical report.
 
-**Success: `200 OK`**
-
-```json
-{
-  "run_id": "8bb7302d-cbe7-49fc-ae56-3dddb12739a4",
-  "pipeline_name": "weekly_location_cost_waste",
-  "trigger_type": "schedule",
-  "requested_week_start": "2026-07-13",
-  "affected_weeks": ["2026-07-06", "2026-07-13"],
-  "status": "success",
-  "last_completed_stage": "load",
-  "started_at": "2026-07-20T06:00:00Z",
-  "finished_at": "2026-07-20T06:01:18Z",
-  "heartbeat_at": "2026-07-20T06:01:15Z",
-  "lease_expires_at": null,
-  "watermark_from": "2026-07-06T00:00:00Z",
-  "watermark_to": "2026-07-20T00:00:00Z",
-  "rows_extracted": 1842,
-  "rows_transformed": 28,
-  "rows_loaded": 28,
-  "rows_rejected": 0,
-  "rows_skipped_duplicate": 3,
-  "retry_count": 0,
-  "error_stage": null,
-  "error_summary": null
-}
-```
-
-**Errors**
-
-- `404 Not Found`: no run has been recorded.
-- `503 Service Unavailable`: reporting storage cannot be read.
-
-No stack trace, credential, or raw rejected payload is returned.
-
-### POST `/reporting/pipeline-runs`
-
-Requests a manual run. Proposed service code validates HTTP input and calls `trigger_business_performance_run()` from `data/pipelines/business_performance`; ETL logic stays in `data/pipelines/`.
-
-**Request**
-
-```json
-{
-  "week_start": "2026-07-13"
-}
-```
-
-`week_start` is optional. When omitted, it means the most recently completed UTC ISO week. When present, it must be a Monday and cannot identify a future or incomplete week.
-
-**Accepted: `202 Accepted`**
-
-```json
-{
-  "run_id": "8bb7302d-cbe7-49fc-ae56-3dddb12739a4",
-  "pipeline_name": "weekly_location_cost_waste",
-  "week_start": "2026-07-13",
-  "status": "running",
-  "trigger_type": "manual",
-  "accepted_at": "2026-07-20T13:15:00Z"
-}
-```
-
-**Duplicate protection and errors**
-
-- If any `weekly_location_cost_waste` run holds a live lease, return `409 Conflict` with the active `run_id`. Runs are serialized before extraction so overlapping windows cannot overwrite newer results.
-- `422 Unprocessable Entity`: invalid JSON, non-Monday date, future week, or incomplete week.
-- `503 Service Unavailable`: orchestration or control storage is unavailable.
-
-The destination upsert also makes a repeated completed-week request safe.
-
-### GET `/reporting/weekly-location-performance`
-
-Returns all available location rows for one week. Proposed service code calls `get_weekly_location_performance(week_start)` from `data/pipelines/business_performance`.
-
-**Query**
-
-- `week_start` is optional and must be an ISO date for a Monday.
-- If omitted, use the most recent successfully computed week.
-
-**Success: `200 OK`**
+### Representative KPI response
 
 ```json
 {
   "week_start": "2026-07-13",
+  "week_end": "2026-07-13",
+  "filters": {
+    "location_id": null,
+    "country": null
+  },
   "data_status": "complete",
   "coverage": "observed_locations_only",
   "computed_at": "2026-07-20T06:01:17Z",
@@ -207,24 +137,17 @@ Returns all available location rows for one week. Proposed service code calls `g
     {
       "location_id": "medellin-centro",
       "country": "CO",
+      "week_start": "2026-07-13",
       "total_purchase_cost": 8420000,
       "total_waste_cost": 610000,
       "waste_ratio": 0.072,
       "stockout_events_count": 2,
       "price_alert_events_count": 1,
-      "currency": "COP"
+      "currency": "COP",
+      "computed_at": "2026-07-20T06:01:17Z"
     }
   ]
 }
 ```
-
-`locations` is sorted by `country`, then `location_id`. Amounts remain in each location's local currency.
-
-**Missing data and errors**
-
-- `200 OK` with `locations: []`, `data_status: "no_rows"`, and `coverage: "observed_locations_only"` when the requested completed week has a successful run but no rows.
-- `404 Not Found` when the week has never completed successfully.
-- `422 Unprocessable Entity` for an invalid or non-Monday `week_start`.
-- `503 Service Unavailable` when reporting storage cannot be read.
 
 Until an authoritative registry exists, the response cannot guarantee that an absent one of the 14 locations had zero activity.

@@ -285,10 +285,10 @@ The proposed API contracts are under a future `services/reporting/` module. The 
 | Endpoint | Pipeline function |
 | --- | --- |
 | `GET /reporting/pipeline-runs/latest` | `get_latest_pipeline_run()` |
-| `POST /reporting/pipeline-runs` | `trigger_business_performance_run()` |
-| `GET /reporting/weekly-location-performance` | `get_weekly_location_performance()` |
+| `POST /reporting/pipeline-runs` | `trigger_business_performance_run(week_start, trigger_type)` |
+| `GET /reporting/weekly-location-performance` | `get_weekly_location_performance(week_start, week_end, location_id, country)` |
 
-Full request, response, concurrency, and error contracts are in [`../../docs/telemetry/business_metrics.md`](../../docs/telemetry/business_metrics.md). ETL logic does not live in `services/`.
+Full request, response, coexistence, concurrency, and error contracts are in [`../../services/reporting/API_DESIGN.md`](../../services/reporting/API_DESIGN.md). KPI field definitions remain in [`../../docs/telemetry/business_metrics.md`](../../docs/telemetry/business_metrics.md). ETL logic does not live in `services/`.
 
 ## 11. Architectural boundaries
 
