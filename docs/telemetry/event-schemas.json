@@ -172,7 +172,7 @@
     "stockWasteRegisteredProperties": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["location_id", "country", "product_id", "product_category", "quantity", "unit", "currency", "reason"],
+      "required": ["location_id", "country", "product_id", "product_category", "quantity", "unit", "currency", "unit_cost", "reason"],
       "properties": {
         "location_id": {"$ref": "#/definitions/locationId"},
         "country": {"$ref": "#/definitions/inventoryCountry"},
@@ -181,6 +181,7 @@
         "quantity": {"$ref": "#/definitions/positiveQuantity"},
         "unit": {"$ref": "#/definitions/unit"},
         "currency": {"$ref": "#/definitions/currency"},
+        "unit_cost": {"$ref": "#/definitions/positiveMoney"},
         "reason": {"$ref": "#/definitions/wasteReason"}
       }
     },
