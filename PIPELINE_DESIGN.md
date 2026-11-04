@@ -17,9 +17,7 @@ Repository evidence inspected:
 
 ### Briefing availability
 
-The required `company-BRIEFING.md` is not present anywhere in this repository. The business contract used here is the Brasaland Business Performance Pipeline briefing supplied with this project: a Monday weekly report for Mariana Restrepo and Felipe Guerrero, with one row per location and UTC ISO week in `reporting.weekly_location_performance`. Its five KPIs are Purchase Cost, Waste Cost, Waste Ratio, Stockout Frequency, and Price Alert Frequency.
-
-The missing repository file remains an evidence gap. This document does not claim that an absent `company-BRIEFING.md` was inspected.
+The business contract is [`company-BRIEFING.md`](company-BRIEFING.md): a Monday weekly report for Mariana Restrepo and Felipe Guerrero, with one row per location and UTC ISO week in `reporting.weekly_location_performance`. Its five KPIs are Purchase Cost, Waste Cost, Waste Ratio, Stockout Frequency, and Price Alert Frequency.
 
 ## 2. Existing architecture
 
@@ -251,14 +249,13 @@ Dependency direction is `services/reporting` → `data/pipelines` → `data/proc
 
 Before implementation:
 
-1. add the authoritative `company-BRIEFING.md` to the repository or establish another versioned source;
-2. obtain or check in the actual Supabase DDL and confirm `telemetry_events.id` uniqueness, JSON type, indexes, RLS, retention, and row limits;
-3. implement inventory capture that validates the approved properties, preserves producer `eventId`, and stores those properties in the runtime payload;
-4. provide an authoritative location registry;
-5. confirm the exact Monday publication time;
-6. choose monetary decimal precision;
-7. define source pagination and maximum batch size; and
-8. package the sibling telemetry, reporting, and pipeline modules into the existing API deployment without creating another service or auth stack.
+1. obtain or check in the actual Supabase DDL and confirm `telemetry_events.id` uniqueness, JSON type, indexes, RLS, retention, and row limits;
+2. implement inventory capture that validates the approved properties, preserves producer `eventId`, and stores those properties in the runtime payload;
+3. provide an authoritative location registry;
+4. confirm the exact Monday publication time;
+5. choose monetary decimal precision;
+6. define source pagination and maximum batch size; and
+7. package the sibling telemetry, reporting, and pipeline modules into the existing API deployment without creating another service or auth stack.
 
 ## 9. Phase 1 conclusion
 
@@ -268,7 +265,7 @@ The detailed implementation-oriented design remains in [`data/pipelines/PIPELINE
 
 ## 10. Phase 2 — Business question and objectives
 
-**Business question:** For each Brasaland location in Colombia and Florida, how much did it spend and waste during the most recently completed ISO week, how large was waste relative to purchases, and how often did stockouts or abnormal ingredient-price alerts occur?
+**Business question (derived from [`company-BRIEFING.md`](company-BRIEFING.md)):** For each Brasaland location in Colombia and Florida, how much did it spend and waste during the most recently completed ISO week, how large was waste relative to purchases, and how often did stockouts or abnormal ingredient-price alerts occur?
 
 The deliverable is the **Weekly Location Cost & Waste Report**. Its audience is Mariana Restrepo (CEO) and Felipe Guerrero (Operations Director). It supports four decisions:
 
@@ -279,7 +276,7 @@ The deliverable is the **Weekly Location Cost & Waste Report**. Its audience is 
 
 This connects to Brasaland's objective of replacing delayed phone calls and weekly spreadsheets with centralized, Monday-morning operational evidence. Required measurements are Purchase Cost per Location, Waste Cost per Location, Waste Ratio, Stockout Frequency, and Price Alert Frequency.
 
-The business question and destination below come from the Business Performance Pipeline briefing supplied for this project. The corresponding `company-BRIEFING.md` remains absent from the repository, as recorded in section 1.
+The business question, KPIs, aggregation grain, and destination below are derived from [`company-BRIEFING.md`](company-BRIEFING.md).
 
 ## 11. KPI definitions
 

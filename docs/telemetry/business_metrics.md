@@ -4,6 +4,8 @@ Status: business contract and API design only. No reporting table or endpoint is
 
 ## Business question
 
+Derived from [`../../company-BRIEFING.md`](../../company-BRIEFING.md).
+
 For each Brasaland location in Colombia and Florida, how much did it spend and waste during the most recently completed ISO week, how large was waste relative to purchases, and how often did stockouts or abnormal ingredient-price alerts occur?
 
 The **Weekly Location Cost & Waste Report** is for Mariana Restrepo (CEO) and Felipe Guerrero (Operations Director). It supports weekly comparison, waste-audit prioritization, replenishment review, and supplier-price intervention. It is refreshed every Monday after the preceding UTC ISO week closes.

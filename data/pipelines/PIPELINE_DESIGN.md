@@ -6,7 +6,7 @@ Status: design only. This document proposes architecture; it does not create rep
 
 **Purpose:** Produce Mariana and Felipe's Monday **Weekly Location Cost & Waste Report** by calculating Purchase Cost per Location, Waste Cost per Location, Waste Ratio, Stockout Frequency, and Price Alert Frequency from the five in-scope inventory event types and loading one row per location and ISO week into `reporting.weekly_location_performance`.
 
-**Business question:** For each Brasaland location in Colombia and Florida, how much did it spend and waste during the most recently completed ISO week, how large was waste relative to purchases, and how often did stockouts or abnormal ingredient-price alerts occur?
+**Business question (from [`../../company-BRIEFING.md`](../../company-BRIEFING.md)):** For each Brasaland location in Colombia and Florida, how much did it spend and waste during the most recently completed ISO week, how large was waste relative to purchases, and how often did stockouts or abnormal ingredient-price alerts occur?
 
 The audience is Mariana Restrepo (CEO) and Felipe Guerrero (Operations Director). The report supports weekly cost comparison, waste-audit prioritization, replenishment review, and supplier-price intervention. It is refreshed each Monday after the preceding UTC week closes.
 
