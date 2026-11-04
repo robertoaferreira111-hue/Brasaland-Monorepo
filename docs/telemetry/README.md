@@ -5,5 +5,7 @@ Written telemetry plan for Brasaland. The inventory application named in the bri
 - `docs/telemetry/README.md` — this file
 - `docs/telemetry/telemetry-plan.md` — design
 - `docs/telemetry/event-schemas.json` — JSON Schema draft-07 contract
+- `docs/telemetry/business_metrics.md` — Weekly Location Cost & Waste KPI and reporting API contract
+- `docs/telemetry/PREFECT_DESIGN.md` — Prefect flow, task, state, configuration, and recovery design
 
 The assignment screenshot also names `docs/telemetry/event-schema.json`. That file is not in this folder. Phase 2 asked for `event-schemas.json`.

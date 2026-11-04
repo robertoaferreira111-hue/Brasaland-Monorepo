@@ -47,7 +47,7 @@ Source: `brasaland-BRIEFING.md` section 3. All six are specified here and absent
 | `direct_stock_edit_rejected` | Yes | None |
 | `ingredient_price_variance_detected` | Yes | None |
 
-Property floor for inventory events, in addition to the envelope: `location_id`, `country` (`CO` or `US`), `product_id`, `product_category`, `quantity`, `unit`, `currency` (`COP` or `USD`). `stock_waste_registered` also requires `reason` (`expired`, `kitchen_error`, `theft_suspected`).
+Property floor for inventory events, in addition to the envelope: `location_id`, `country` (`CO` or `US`), `product_id`, `product_category`, `quantity`, `unit`, `currency` (`COP` or `USD`). `inbound_order_created` and `stock_waste_registered` also require `unit_cost`; `stock_waste_registered` requires `reason` (`expired`, `kitchen_error`, `theft_suspected`).
 
 The same section also names `reason` on `outbound_order_created`, and then limits the enum to waste values. The metric row defines `outbound_order_created` as consumption during preparation, and defines waste as a different event. This plan does **not** put `reason` on `outbound_order_created`. Putting the waste enum on consumption would mix the two metrics. The conflict stays open in section 10.
 
@@ -194,7 +194,7 @@ PII for every inventory event: `properties` are business measurements, classific
 - **Decision:** Felipe Guerrero orders waste audits at the worst locations.
 - **Delivery:** Stream. `theft_suspected` is useless if it waits for a weekly file. The same capture path is used for `expired` and `kitchen_error` so the three reasons stay comparable. The briefing does not rank the reasons.
 - **Evidence:** Briefing. No route.
-- **Required `properties`:** floor, plus `reason` enum `expired`, `kitchen_error`, `theft_suspected`.
+- **Required `properties`:** floor, plus `unit_cost` (number `> 0`, in `currency`) and `reason` enum `expired`, `kitchen_error`, `theft_suspected`.
 - **Optional:** none.
 - **PII:** none. Do not add a comment field. Free text can name a person.
 
@@ -441,7 +441,7 @@ No vendor, broker, or region is chosen here.
 | --- | --- | --- | --- |
 | Purchases by location and supplier | `inbound_order_created` | Sum of `quantity` and `unit_cost` by `location_id`, `supplier_id`, `product_id`, `country`, week | Lucía consolidates purchasing |
 | Consumption rate | `outbound_order_created` | Sum of `quantity` by `product_id` and `location_id` over time | Felipe adjusts replenishment |
-| Waste by cause and location | `stock_waste_registered` | Sum of `quantity` by `reason` and `location_id` | Felipe orders audits |
+| Waste by cause and location | `stock_waste_registered` | Sum of `quantity * unit_cost` by `reason` and `location_id` | Felipe orders audits |
 | Shortages | `stock_threshold_triggered` | Count of crossings by `product_id` and `location_id` | Change minimum or replenishment frequency |
 | Traceability bypass | `direct_stock_edit_rejected` | Count by `location_id` | Jake targets training |
 | Abnormal unit cost | `ingredient_price_variance_detected` | Events where the absolute ratio exceeds the stored `threshold_ratio` | Lucía and Mariana renegotiate or switch supplier |
