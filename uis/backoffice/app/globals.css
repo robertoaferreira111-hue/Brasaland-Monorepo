@@ -61,5 +61,10 @@ tr.is-suspended { background:#e7e5e4; color:#44403c; }
 .text-link { color:var(--accent); font-weight:600; text-decoration:underline; text-underline-offset:.15em; }
 .recovery-hint { margin:0; color:var(--muted); font-size:.9rem; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+.telemetry-dashboard { display:grid; gap:1rem; }
+.telemetry-table-wrap table { min-width:640px; }
+.telemetry-bar-track { height:.55rem; background:#e7e5e4; border-radius:999px; overflow:hidden; min-width:6rem; }
+.telemetry-bar-fill { height:100%; background:var(--accent); border-radius:999px; }
+.telemetry-dashboard code { font-size:.9em; }
 @media (min-width:768px) { .nav-toggle{display:none}.filters{grid-template-columns:repeat(3,minmax(0,1fr))}.register-form{grid-template-columns:repeat(2,minmax(0,1fr))}.span-2{grid-column:1/-1} }
 @media (max-width:767px) { .site-nav{display:none;flex-direction:column;padding-bottom:1rem}.site-nav.is-open{display:flex} }

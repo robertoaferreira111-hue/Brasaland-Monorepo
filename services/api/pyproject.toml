@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
     "httpx>=0.28",
+    "pandas>=2.2",
     "pydantic>=2",
     "pyjwt>=2.9",
     "python-dotenv>=1.0",
@@ -32,7 +33,7 @@ packages = ["app"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = [".", "../telemetry"]
 
 [tool.uv]
 default-groups = ["dev"]

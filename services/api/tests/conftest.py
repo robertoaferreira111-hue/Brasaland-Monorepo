@@ -13,6 +13,18 @@ def auth_db_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return db_path
 
 
+@pytest.fixture(autouse=True)
+def disable_live_telemetry(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+    """Keep unit/regression tests from writing to the shared Supabase table."""
+    if "capture_rows" in request.fixturenames:
+        return
+
+    def _noop(**kwargs: object) -> None:
+        del kwargs
+
+    monkeypatch.setattr("app.telemetry.persist_telemetry_event", _noop)
+
+
 @pytest.fixture()
 def client(auth_db_path: Path):
     """HTTP client bound to this test's empty auth database."""
