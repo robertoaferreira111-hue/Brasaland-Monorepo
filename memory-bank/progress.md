@@ -33,4 +33,4 @@
 6. Stage 7 Docker Compose rewrite — **merged** as PR #20 (superseded #9 closed).
 7. Stage 5 gap (pytest-cov) — **merged** as PR #19.
 8. Telemetry technical report — **merged** as PR #25 (capture, Pandas analysis, `GET /telemetry/report` + 60s cache, auth failure metric, backoffice `/telemetry` dashboard).
-9. Business performance pipeline Part 1 design — in progress on `main` through Phase 5: `data/pipelines/PIPELINE_DESIGN.md`, root `PIPELINE_DESIGN.md` (Phases 1–3), `docs/telemetry/business_metrics.md`, `docs/telemetry/PREFECT_DESIGN.md`, and Phase 5 `services/reporting/API_DESIGN.md`.
+9. Business performance pipeline Part 1 design — **complete** on `main`: `company-BRIEFING.md`, root `PIPELINE_DESIGN.md` (Phases 1–3), `data/pipelines/PIPELINE_DESIGN.md`, `docs/telemetry/business_metrics.md`, `docs/telemetry/PREFECT_DESIGN.md`, and `services/reporting/API_DESIGN.md`.
