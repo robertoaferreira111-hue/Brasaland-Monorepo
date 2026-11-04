@@ -289,7 +289,7 @@ Non-secret block containing:
 ## 12. Scheduling and manual execution
 
 - One scheduled deployment starts each Monday after the prior UTC week closes. The exact Monday-morning time is unresolved in the briefing and must be approved before implementation.
-- `POST /reporting/pipeline-runs` requests the same flow through a deployment or orchestration adapter; FastAPI does not execute ETL inline.
+- `POST /reporting/pipeline-runs` requests the same flow through a deployment or orchestration adapter; FastAPI does not execute ETL inline. The full HTTP contracts are in [`../../services/reporting/API_DESIGN.md`](../../services/reporting/API_DESIGN.md).
 - Any active scheduled, manual, or backfill run with a live pipeline lease causes a new trigger to return `409`. Serialization begins before extraction, so overlapping windows cannot publish stale snapshots.
 - A bounded historical request uses the same main flow with `trigger_type = backfill`; Part 1 does not require a second flow.
 
