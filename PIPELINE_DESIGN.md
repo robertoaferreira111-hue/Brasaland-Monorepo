@@ -1,6 +1,6 @@
 # Brasaland Business Performance Pipeline Design
 
-Status: repository-verified Phase 1 and Phase 2 design documentation. This file makes no runtime, schema, migration, dependency, endpoint, or deployment change.
+Status: repository-verified Phase 1–3 design documentation. This file makes no runtime, schema, migration, dependency, endpoint, or deployment change.
 
 ## 1. Scope and evidence
 
@@ -435,7 +435,7 @@ This DDL is documentation only. No migration or table is created in Phase 2.
 - **Primary key:** generated `id`.
 - **Business uniqueness:** `(location_id, week_start)`.
 - **Grain:** one location and completed UTC ISO week.
-- **Load behavior:** one transaction for the complete requested window; `INSERT ... ON CONFLICT (location_id, week_start) DO UPDATE` replaces every KPI, country, currency, and `computed_at`.
+- **Load behavior:** one transaction for the complete requested window; `INSERT ... ON CONFLICT (location_id, week_start) DO UPDATE` replaces every KPI, country, currency, and `computed_at`, then deletes stale location-week rows absent from the recomputed set for each affected week.
 - **History:** prior weeks remain; a late-data overlap or bounded backfill deterministically replaces only affected weekly rows.
 - **Currency:** no conversion and no cross-currency aggregate.
 
@@ -480,3 +480,122 @@ Extraction reads raw telemetry without mutation. Transformation owns business ru
 - No Prefect code, pipeline code, endpoint, dependency, migration, or table is implemented in this phase.
 
 Phase 2 provides a traceable design from Brasaland's weekly management question through source events, verified runtime columns, proposed business fields, deterministic KPI formulas, ETL stages, and the exact briefing destination. Runtime implementation remains blocked on the inventory emitters, stable event identity, authoritative location registry, live Supabase DDL, and approved operational configuration already listed in section 8.
+
+## 17. Phase 3 — Idempotency
+
+A failed or repeated run must not silently inflate purchase or waste totals, invent duplicate destination rows, or publish half a week.
+
+### 17.1 Business keys and destination uniqueness
+
+- Source natural key for deduplication: stable producer `eventId` persisted as `telemetry_events.id` and reused on transmission retries. The current fresh-ID-per-write adapter is not sufficient for at-least-once inventory delivery.
+- Destination composite business key: `(location_id, week_start)`.
+- Destination unique constraint: `unique (location_id, week_start)` on `reporting.weekly_location_performance`.
+- Destination primary key: generated `id`; it is not used for idempotent replacement.
+
+### 17.2 Upsert and replacement strategy
+
+Load uses one database transaction for every weekly partition in the requested window:
+
+```sql
+INSERT ... ON CONFLICT (location_id, week_start) DO UPDATE
+```
+
+The update replaces `country`, `currency`, all five KPI fields, and `computed_at` from a complete recomputation. It never adds new totals onto old totals. Within the same transaction, after upserting the recomputed set for each `week_start` in `affected_weeks`, delete any existing `reporting.weekly_location_performance` row for that week whose `location_id` is absent from the recomputed set. That reconcile step prevents a successful narrower recompute from leaving stale location-week rows. If the load transaction fails, it rolls back; no half-published partition remains.
+
+### 17.3 Overlapping extraction windows
+
+Scheduled runs re-read a 14-day UTC overlap ending at Monday `00:00`. That overlap intentionally recomputes the prior two complete ISO weeks. Because aggregates are recomputed from source and replaced by upsert, rereading the same events does not create second reporting rows or double-count KPIs. Events older than the overlap require an explicit bounded backfill for the affected week.
+
+### 17.4 Repeated manual execution
+
+Only one `weekly_location_cost_waste` run may hold a live renewable lease. A second schedule, manual, or backfill trigger while that lease is valid receives `409 Conflict` with the active `run_id`. Serialization begins before extraction so an older extract cannot overwrite a newer result. After a successful completed week, a later manual rerun for the same week is safe: it recomputes and upserts the same `(location_id, week_start)` keys.
+
+### 17.5 Partial batch failures
+
+Extraction pages by `(timestamp ASC, id ASC)`. An interrupted or incomplete page set is discarded; extraction restarts the bounded window from the beginning rather than committing a truncated extract. If a KPI-bearing record is invalid, transformation fails before load and no destination rows from that run are published. Context-only malformed `outbound_order_created` events may be rejected and counted without changing KPIs. There is no partial successful publication of a known understated week.
+
+### 17.6 Historical recalculation
+
+Historical correction uses the same extract → transform → load path with explicit week bounds and `trigger_type = backfill`. Only the requested partitions are recomputed and replaced. Prior unaffected weeks remain. Watermark advancement for scheduled incremental progress happens only after a successful load and reconciliation; a failed backfill does not rewrite the successful incremental watermark.
+
+## 18. Phase 3 — Observability
+
+### 18.1 Proposed execution record
+
+The proposed `reporting.pipeline_runs` control table is documentation only. Required operational fields:
+
+| Field | Type | Purpose |
+| --- | --- | --- |
+| `run_id` | `uuid` | Correlates API responses, orchestration logs, and alerts for one execution. |
+| `pipeline_name` | `text` | Distinguishes this pipeline from future reporting jobs. |
+| `trigger_type` | `text` | `schedule`, `manual`, or `backfill`. |
+| `requested_week_start` | `date` | Week requested by the trigger. |
+| `affected_weeks` | `date[]` | Every destination partition recomputed by the run. |
+| `started_at` | `timestamptz` | Execution start. |
+| `finished_at` | `timestamptz nullable` | Execution end. |
+| `heartbeat_at` | `timestamptz nullable` | Distinguishes a live run from an orphan. |
+| `lease_expires_at` | `timestamptz nullable` | Enables safe takeover after a crash. |
+| `status` | `text` | `running`, `success`, or `failed`. |
+| `last_completed_stage` | `text nullable` | Audit marker for the last stage that finished. It is not a mid-stage resume pointer; recovery restarts the bounded window. |
+| `watermark_from` | `timestamptz` | Inclusive source lower bound. |
+| `watermark_to` | `timestamptz` | Exclusive source upper bound. |
+| `rows_extracted` | `integer` | Source records after filtering. |
+| `rows_transformed` | `integer` | Destination-ready location/week rows. |
+| `rows_loaded` | `integer` | Inserted or updated destination rows. |
+| `rows_rejected` | `integer` | Invalid source records. |
+| `rows_skipped_duplicate` | `integer` | Duplicate source IDs collapsed. |
+| `retry_count` | `integer` | Transient retries before the result. |
+| `duration_ms` | `bigint nullable` | End-to-end processing duration. |
+| `error_stage` | `text nullable` | Stage that failed. |
+| `error_summary` | `text nullable` | Sanitized human-readable diagnosis; no credentials or raw payloads. |
+| `pipeline_version` | `text` | Git SHA or package version used. |
+
+### 18.2 Reconstructing the execution path
+
+For any published week, operators reconstruct the path as:
+
+1. among successful runs whose `affected_weeks` contain that `week_start`, select the latest by `finished_at`;
+2. read `watermark_from` / `watermark_to` to identify the source time range;
+3. compare `rows_extracted`, `rows_skipped_duplicate`, `rows_rejected`, and `rows_transformed`;
+4. compare `rows_loaded` with destination rows for that week, using `computed_at` and location set reconciliation; and
+5. use `pipeline_version`, `error_stage`, and `error_summary` when the run failed or looked anomalous.
+
+Task and API logs include the same `run_id` so orchestration, HTTP status, and destination evidence stay joinable.
+
+### 18.3 Silent failures, collection gaps, and measurement drift
+
+- **Silent failures:** alert when a scheduled Monday run is absent, remains `running` past its SLA or lease, ends `failed`, or never becomes `success`. A missing status update after lease expiry is itself an alert condition.
+- **Collection and extraction gaps:** compare event counts by type and location with recent weeks. Zero KPI rows for an observed location after a successful extract is business silence; a drop across all event types, truncated page counts, or `rows_extracted` near a known PostgREST page limit indicates collection or extraction loss. Complete proof that all 14 locations were observed remains blocked until a location registry exists.
+- **Unexpected growth or loss:** compare unique source IDs, rejection counts, and KPI deltas with recent baselines. A volume spike paired with rising `rows_skipped_duplicate` indicates duplicate delivery; a large KPI jump without matching source-ID growth indicates formula or unit-cost problems and must not be treated as normal business change without investigation.
+
+## 19. Phase 3 — Recoverability
+
+Retries for transport and connection failures use up to three attempts with bounded exponential backoff and jitter, matching the Prefect task contracts. Validation and contract failures are not retried until data or code changes. `last_completed_stage` records progress for operators; it does not authorize resuming from mid-extract or mid-load.
+
+| Failure | Expected recovery |
+| --- | --- |
+| Source database connection failure | Retry extraction within the bounded policy. On exhaustion, mark the run `failed`, keep the previous successful watermark, and write no destination rows. |
+| Interrupted extraction / incomplete pagination | Discard the incomplete extract artifact and restart the entire bounded window in deterministic `(timestamp, id)` order. |
+| Transformation failure | Persist `failed`, stage, counts, and rejection summary. Write no destination data. After correction, re-run the same bounded window. |
+| Partial processing of a KPI-bearing week | Do not publish. All requested partitions succeed together in one load transaction or the transaction rolls back. |
+| Destination write / connection failure | Retry transient destination errors. On exhaustion, roll back the load transaction, leave destination unchanged, and mark the run `failed`. A later retry performs the same upsert. |
+| Process crash before load | Heartbeats stop. After lease expiry, a new trigger marks the orphaned run `failed` and acquires a replacement lease, then restarts the bounded window. |
+| Process crash after destination commit but before success log | After lease expiry, a replacement run recomputes and upserts the same window. Destination unique keys make the upsert harmless; the replacement run reconciles row counts and then marks itself `success`. |
+| Repeated safe re-execution | Same bounded window + deterministic aggregates + upsert on `(location_id, week_start)` produce identical business results without duplicate rows. |
+| Historical backfill | Explicit week bounds, same ETL path, replace only requested partitions; do not advance the scheduled incremental watermark on failure. |
+| Offline or buffered capture | Capture must retain original event timestamp and producer `eventId`, persist that stable ID as `telemetry_events.id`, and reuse it across retries. The pipeline assigns ISO week from event time, not receipt time. |
+
+### 19.1 Corruption-avoidance summary
+
+1. No destination write occurs until transformation of the requested window succeeds.
+2. Destination publication is transactional for the whole requested window.
+3. Replacement uses the business unique key, not additive increments.
+4. Successful recomputes delete stale location-week rows absent from the new result set for each affected week.
+5. Concurrent overlapping runs are blocked by a renewable pre-extract lease and load-time lease revalidation.
+6. Watermarks advance only after successful load and reconciliation.
+7. Failed runs leave prior successful weekly rows intact.
+8. Recovery restarts the bounded window; stage markers are not mid-pipeline resume pointers.
+
+## 20. Phase 3 conclusion
+
+Phase 3 defines the operational guarantees required before Prefect implementation: idempotent recomputation, auditable run records, and explicit recovery for every interruption class that could otherwise corrupt Mariana and Felipe's weekly location cost and waste numbers. No reliability table, retry worker, alert channel, or pipeline code is implemented in this phase. Detailed orchestration mapping remains in [`docs/telemetry/PREFECT_DESIGN.md`](docs/telemetry/PREFECT_DESIGN.md) and [`data/pipelines/PIPELINE_DESIGN.md`](data/pipelines/PIPELINE_DESIGN.md).
