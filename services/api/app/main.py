@@ -15,6 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.errors import STORAGE_UNAVAILABLE, StorageError, UNEXPECTED_ERROR
 from app.routers import auth, profiles, users
 from app.routers.suppliers import router as suppliers_router
+from app.routers.telemetry import router as telemetry_ingest_router
 from app.telemetry import (
     LOGIN_FAILURE_DETAIL,
     PROTECTED_ROUTE_DETAILS,
@@ -56,6 +57,7 @@ app.include_router(auth.router)
 app.include_router(profiles.router)
 app.include_router(suppliers_router)
 app.include_router(telemetry_report_router)
+app.include_router(telemetry_ingest_router)
 
 
 @app.get("/health")

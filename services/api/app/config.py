@@ -39,6 +39,8 @@ class Settings:
     resend_api_key: str | None
     sendgrid_api_key: str | None
     email_from: str
+    supabase_url: str | None = None
+    supabase_service_role_key: str | None = None
     min_password_length: int = 8
 
     @property
@@ -64,6 +66,8 @@ def get_settings() -> Settings:
         resend_api_key=os.getenv("RESEND_API_KEY") or None,
         sendgrid_api_key=os.getenv("SENDGRID_API_KEY") or None,
         email_from=os.getenv("EMAIL_FROM", "Brasaland <onboarding@resend.dev>"),
+        supabase_url=os.getenv("SUPABASE_URL") or None,
+        supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY") or None,
     )
 
 
