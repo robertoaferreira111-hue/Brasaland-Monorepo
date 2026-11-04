@@ -183,7 +183,7 @@ reporting.weekly_location_performance (
 
 The implementation migration will create the `reporting` schema and table in a later milestone. This milestone creates no database object.
 
-All weekly partitions requested by one run are loaded in one database transaction with `INSERT ... ON CONFLICT (location_id, week_start) DO UPDATE`. The update replaces every computed KPI, country, currency, and `computed_at` from the complete recomputation. It does not add new totals to old totals. Historical weeks are retained; a backfill updates only the requested weekly partitions.
+All weekly partitions requested by one run are loaded in one database transaction with `INSERT ... ON CONFLICT (location_id, week_start) DO UPDATE`. The update replaces every computed KPI, country, currency, and `computed_at` from the complete recomputation. It does not add new totals to old totals. Within the same transaction, after upserting the recomputed set for each affected `week_start`, delete any existing row for that week whose `location_id` is absent from the recomputed set. Historical weeks are retained; a backfill updates only the requested weekly partitions.
 
 ## 6. Update and idempotency strategy
 
@@ -230,7 +230,7 @@ The implementation will add a generic `reporting.pipeline_runs` control table. I
 | `heartbeat_at` | `timestamptz nullable` | Distinguishes a live run from an orphan after a process crash. |
 | `lease_expires_at` | `timestamptz nullable` | Permits safe atomic takeover instead of a permanent `409`. |
 | `status` | `text` enum: `running`, `success`, `failed` | Drives status API and alerts. |
-| `last_completed_stage` | `text nullable` | Identifies the safe recovery point. |
+| `last_completed_stage` | `text nullable` | Audit marker for the last finished stage. Recovery restarts the bounded window; this is not a mid-stage resume pointer. |
 | `watermark_from` | `timestamptz` | Records the first source instant considered. |
 | `watermark_to` | `timestamptz` | Records the exclusive source cutoff. |
 | `rows_extracted` | `integer` | Detects empty or truncated extraction. |

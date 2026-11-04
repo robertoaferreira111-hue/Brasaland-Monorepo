@@ -147,6 +147,7 @@ Revalidate ownership of the unexpired pipeline lease and transactionally upsert 
 - destination: `reporting.weekly_location_performance`;
 - conflict key: `(location_id, week_start)`;
 - update behavior: replace all computed KPI fields, country, currency, and `computed_at`;
+- within the same transaction, delete location-week rows for each affected week that are absent from the recomputed set;
 - one transaction for the complete requested run window; and
 - no additive update of prior aggregate totals.
 
