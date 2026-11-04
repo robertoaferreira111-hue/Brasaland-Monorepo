@@ -1,14 +1,18 @@
 # Prefect Design: Weekly Location Cost & Waste Pipeline
 
-Status: orchestration design only. Prefect is not a repository dependency, and this milestone adds no flow, task, deployment, worker, or configuration block.
+Status: Phase 4 orchestration design only. Prefect is not a repository dependency, and this milestone adds no flow, task, deployment, worker, or configuration block. Reliability decisions below agree with Phase 3 in root [`PIPELINE_DESIGN.md`](../../PIPELINE_DESIGN.md) and [`data/pipelines/PIPELINE_DESIGN.md`](../../data/pipelines/PIPELINE_DESIGN.md).
+
+Location: `docs/telemetry/PREFECT_DESIGN.md`, beside the technical telemetry report.
 
 ## 1. Main flow
 
-**Name:** `business_performance_etl_flow`
+**Proposed name:** `business_performance_etl_flow`
 
-**Responsibility:** Coordinate a bounded extract, deterministic KPI transformation, and idempotent load for the Weekly Location Cost & Waste Report, while keeping `reporting.pipeline_runs` synchronized with the orchestration state.
+**Responsibility:** Coordinate the complete Weekly Location Cost & Waste Report pipeline: acquire a renewable pre-extract lease, extract a bounded UTC window from read-only `public.telemetry_events`, transform deterministic location/week KPIs, transactionally load and reconcile `reporting.weekly_location_performance`, and keep `reporting.pipeline_runs` synchronized with orchestration state.
 
-### Parameters
+A second flow is not required for Part 1. Scheduled, manual, and backfill triggers reuse this flow with different parameters. Part 1 does not define a separate technical-telemetry or alerting flow.
+
+### 1.1 Flow parameters
 
 | Parameter | Type | Rule |
 | --- | --- | --- |
@@ -19,7 +23,19 @@ Status: orchestration design only. Prefect is not a repository dependency, and t
 
 The flow calculates a half-open UTC source window, creates a `reporting.pipeline_runs` record, and passes the same `run_id` through every task.
 
-## 2. Execution graph
+## 2. Task execution order and dependencies
+
+The three ETL tasks execute strictly in series. Supporting audit tasks bracket them but do not replace the extract → transform → load boundary.
+
+| Order | Task | Depends on | May start only when |
+| --- | --- | --- | --- |
+| 1 | `create_pipeline_run` | flow parameters validated | No live lease exists for `weekly_location_cost_waste`, or an expired orphan is takeover-eligible. |
+| 2 | `extract_telemetry_events` | successful lease and audit row | `run_id` is `running` with an unexpired lease. |
+| 3 | `transform_weekly_location_performance` | successful extract | Immutable extract artifact or serializable extract output is available. |
+| 4 | `load_weekly_location_performance` | successful transform | Transform produced a validation-passing destination set for the requested window. |
+| 5 | `mark_pipeline_run_completed` | successful load | Destination transaction committed and row-count reconciliation passed. |
+
+Failure of any critical ETL task stops downstream tasks. The flow state handler calls `mark_pipeline_run_failed` when an audit row already exists. Watermark advancement occurs only after load success and completion marking.
 
 ```mermaid
 flowchart LR
@@ -41,30 +57,28 @@ flowchart LR
     Complete -->|audit update failure| Reconcile
 ```
 
-The three ETL tasks execute in order. Load cannot start without a successful transformation, and the successful watermark advances only after load commits.
+## 3. Task 1 — Extraction
 
-## 3. Task contracts
+**Proposed name:** `extract_telemetry_events`
 
-### 3.1 `extract_telemetry_events`
+### Responsibility
 
-**Responsibility**
+Read the bounded UTC window from read-only Supabase `public.telemetry_events`, filter to the five business event types, page deterministically by `(timestamp ASC, id ASC)`, and deduplicate by source `id` after the inventory-capture prerequisite maps stable producer `eventId` to that database ID.
 
-Read the bounded UTC window from read-only Supabase `public.telemetry_events`, filter to the five business event types, page deterministically, and deduplicate by source `id` after the inventory-capture prerequisite maps stable producer `eventId` to that database ID.
-
-**Inputs**
+### Inputs
 
 - `run_id: UUID`
 - `window_start: datetime` in UTC
 - `window_end: datetime` in UTC, exclusive
 - `event_types: tuple[str, ...]`
 - `batch_size: int`
-- Supabase credentials block
+- `SupabaseCredentials` block
 
-**Output**
+### Outputs
 
-An immutable extract reference or serializable collection containing `id`, `timestamp`, `event_type`, and parsed `tags`, plus counts for extracted and duplicate rows.
+An immutable extract reference or serializable collection containing `id`, `timestamp`, `event_type`, and parsed `tags`, plus counts for extracted and duplicate rows written back to the run record.
 
-**Failure conditions**
+### Failure conditions
 
 - missing credentials;
 - source connection or timeout exhaustion;
@@ -73,30 +87,32 @@ An immutable extract reference or serializable collection containing `id`, `time
 - duplicate `id` values with conflicting payloads; or
 - an unbounded or invalid source window.
 
-**Retry**
+### Retry behavior
 
-Three attempts for transient HTTP `429`, timeout, connection, and `5xx` failures using exponential backoff with jitter. Authentication, contract, and parameter failures are not retried. A retry restarts the bounded extraction; it does not continue from an unverified partial page.
+Three attempts for transient HTTP `429`, timeout, connection, and `5xx` failures using exponential backoff with jitter. Authentication, contract, and parameter failures are not retried. A retry restarts the entire bounded extraction; it does not continue from an unverified partial page. Incomplete extracts are discarded, matching Phase 3 interrupted-extraction recovery.
 
-### 3.2 `transform_weekly_location_performance`
+## 4. Task 2 — Transformation
 
-**Responsibility**
+**Proposed name:** `transform_weekly_location_performance`
 
-Validate and normalize source events, calculate event-level costs, assign UTC ISO weeks, reject invalid records, and aggregate the five KPIs by location/week.
+### Responsibility
 
-**Inputs**
+Validate and normalize source events, calculate event-level costs, assign UTC ISO weeks, reject invalid records, and aggregate the five KPIs by `(location_id, week_start)`.
+
+### Inputs
 
 - `run_id: UUID`
-- immutable extract output
-- country/currency allowlist
+- immutable extract output from Task 1
+- country/currency allowlist from `BusinessPipelineConfig`
 
-**Output**
+### Outputs
 
 - rows at `(location_id, week_start)` grain for `reporting.weekly_location_performance`;
 - rejection records with source ID and reason code;
 - extracted, transformed, rejected, and duplicate counts; and
 - run-level validation status.
 
-**Validation**
+### Validation
 
 - timezone-aware parseable timestamp;
 - recognized event type;
@@ -107,7 +123,7 @@ Validate and normalize source events, calculate event-level costs, assign UTC IS
 - one consistent country/currency pair per location/week; and
 - decimal monetary arithmetic.
 
-**Failure conditions**
+### Failure conditions
 
 - extract contract mismatch;
 - conflicting duplicate IDs;
@@ -117,43 +133,51 @@ Validate and normalize source events, calculate event-level costs, assign UTC IS
 
 A malformed `outbound_order_created` context event may be rejected and counted without failing the task because it does not feed a v1 KPI. Invalid KPI-bearing events fail the task, so no destination partition from that run is published.
 
-**Retry**
+### Retry behavior
 
-No automatic retry for deterministic data or validation failures. One task retry is permitted only for transient artifact-access failure. Corrected data or code is reprocessed through a new run.
+No automatic retry for deterministic data or validation failures. One task retry is permitted only for transient artifact-access failure. Corrected data or code is reprocessed through a new run that restarts the bounded window. Stage markers are audit-only; they are not mid-transform resume pointers.
 
-### 3.3 `load_weekly_location_performance`
+## 5. Task 3 — Loading
 
-**Responsibility**
+**Proposed name:** `load_weekly_location_performance`
 
-Revalidate ownership of the unexpired pipeline lease and transactionally upsert complete aggregates into `reporting.weekly_location_performance` on `(location_id, week_start)`.
+### Responsibility
 
-**Inputs**
+Revalidate ownership of the unexpired pipeline lease and transactionally publish complete aggregates into `reporting.weekly_location_performance`.
+
+### Inputs
 
 - `run_id: UUID`
-- transformed rows
+- transformed rows from Task 2
 - affected week list
 - run-level validation status
 - Supabase/database credentials block
 
-**Output**
+### Outputs
 
 - number of rows inserted or updated;
+- number of stale location-week rows deleted by reconciliation;
 - committed weekly partitions;
 - `computed_at`; and
 - destination reconciliation result.
 
-**Destination and idempotency**
+### Destination handling
 
-- destination: `reporting.weekly_location_performance`;
+- destination table: `reporting.weekly_location_performance`;
 - conflict key: `(location_id, week_start)`;
-- update behavior: replace all computed KPI fields, country, currency, and `computed_at`;
-- within the same transaction, delete location-week rows for each affected week that are absent from the recomputed set;
-- one transaction for the complete requested run window; and
-- no additive update of prior aggregate totals.
+- one database transaction for the complete requested run window;
+- lock and revalidate the `reporting.pipeline_runs` row for `run_id` before writing;
+- require `status = 'running'` and an unexpired lease; and
+- refuse publication when the transform validation status is failed.
 
-The transaction locks the `reporting.pipeline_runs` row for `run_id` and verifies `status = 'running'` and an unexpired lease before writing. A stale process that lost its lease fails without publishing.
+### Idempotency
 
-**Failure conditions**
+- `INSERT ... ON CONFLICT (location_id, week_start) DO UPDATE` replaces country, currency, all KPI fields, and `computed_at`;
+- updates are replacement, never additive increments;
+- within the same transaction, delete existing rows for each affected `week_start` whose `location_id` is absent from the recomputed set; and
+- repeated successful execution of the same bounded window yields the same business results without duplicate destination rows.
+
+### Failure conditions
 
 - absent, expired, or superseded pipeline lease;
 - destination connection failure;
@@ -162,23 +186,54 @@ The transaction locks the `reporting.pipeline_runs` row for `run_id` and verifie
 - transaction commit failure; or
 - attempt to publish a validation-failed run.
 
-**Retry**
+### Retry behavior
 
-Three attempts for transient connection, timeout, serialization, or deadlock failures with exponential backoff and jitter. Constraint and validation failures are not retried. Transaction rollback plus upsert makes a retry safe.
+Three attempts for transient connection, timeout, serialization, or deadlock failures with exponential backoff and jitter. Constraint and validation failures are not retried. Transaction rollback plus upsert-and-reconcile makes a retry safe. A crash after destination commit but before success logging is recovered by a later run of the same window; unique keys and reconcile deletes keep the result correct.
 
-## 4. Supporting tasks
+## 6. Supporting orchestration tasks
 
 The flow may use small orchestration tasks without reducing the required three-task ETL boundary:
 
 - `create_pipeline_run`: atomically acquire the single renewable lease for `weekly_location_cost_waste` and insert the `running` audit row;
 - `mark_pipeline_run_completed`: reconcile counts, set `success`, record `finished_at`, and advance the watermark;
-- `mark_pipeline_run_failed`: preserve counts and checkpoint, set `failed`, and store a sanitized error summary.
+- `mark_pipeline_run_failed`: preserve counts and audit stage marker, set `failed`, and store a sanitized error summary.
 
 These tasks manage orchestration metadata only; they do not calculate KPIs.
 
 The later control-table migration will enforce at most one unexpired active lease for `pipeline_name`. The flow heartbeats `heartbeat_at` and extends `lease_expires_at`. A trigger presented with a live lease returns `409` and its `run_id`; after expiry, one transaction marks the orphaned run failed and acquires the replacement lease. This reservation occurs before extraction, serializing all scheduled, manual, and backfill windows.
 
-## 5. States and failure propagation
+## 7. Logging
+
+Every task log includes `run_id`, Prefect flow-run ID, task-run ID, pipeline version, source window, and stage. Logs must not include credentials, staff identity, or raw payloads.
+
+The flow records the Phase 3 observability fields on `reporting.pipeline_runs`:
+
+- start and finish timestamps;
+- execution status;
+- source watermarks;
+- heartbeat and lease expiry;
+- rows extracted, transformed, loaded, rejected, and skipped as duplicates;
+- duration;
+- last completed stage as an audit marker only;
+- destination partitions;
+- retry count; and
+- sanitized error stage and summary.
+
+Alerts are designed for a missing Monday run, an over-SLA `Running` run, terminal failure, lease-expiry without status update, source-event collapse, and unusual duplicate/rejection growth.
+
+## 8. Retry configuration
+
+| Scope | Attempts | Policy |
+| --- | --- | --- |
+| Extract transient transport failures | 3 | Exponential backoff with jitter |
+| Transform transient artifact access | 1 | No retry for validation or data defects |
+| Load transient destination failures | 3 | Exponential backoff with jitter; rollback then retry |
+| Auth, contract, constraint, and validation failures | 0 | Fail immediately; wait for correction |
+| Incomplete extract / interrupted pagination | n/a | Discard partial pages and restart the bounded window |
+
+Retry counts are recorded on the run. Exhaustion marks the Prefect task and flow failed and does not advance the scheduled watermark.
+
+## 9. Failure propagation and execution status
 
 | Prefect state | Pipeline-run state | Meaning |
 | --- | --- | --- |
@@ -189,25 +244,24 @@ The later control-table migration will enforce at most one unexpired active leas
 
 Extraction, transformation, and loading are critical. A failed critical task prevents downstream execution. The state handler attempts to update the audit row; failure to update that row is logged separately and does not falsely report success.
 
-## 6. Logging and observability
+## 10. Recovery behavior
 
-Every task log includes `run_id`, flow-run ID, task-run ID, pipeline version, source window, and stage. Logs must not include credentials, staff identity, or raw payloads.
+Aligned with Phase 3 recoverability:
 
-The flow records:
+| Failure | Prefect recovery |
+| --- | --- |
+| Source database connection failure | Retry extract up to three times; on exhaustion fail the flow without destination writes or watermark advance. |
+| Interrupted extraction | Discard incomplete extract and restart the bounded window. |
+| Transformation failure | Fail transform and flow; preserve rejection evidence; no load. |
+| Partial processing | Do not publish; load is all-or-nothing for the requested window. |
+| Destination write failure | Roll back, retry load up to three times; on exhaustion leave prior successful rows intact. |
+| Safe re-execution | Same window + deterministic aggregates + upsert and reconcile deletes. |
+| Historical backfill | Same main flow with `trigger_type = backfill` and explicit week bounds; failed backfill does not rewrite the incremental watermark. |
+| Process crash before load | Heartbeat stops; after lease expiry a replacement run takes over and restarts the window. |
+| Crash after destination commit | Replacement run upserts and reconciles the same window, then marks success. |
+| Offline or buffered capture | Blocked until capture reuses producer `eventId` as `telemetry_events.id`; week assignment uses event time. |
 
-- start and finish timestamps;
-- source watermarks;
-- heartbeat and lease expiry;
-- rows extracted, transformed, loaded, rejected, and skipped as duplicates;
-- duration;
-- last completed stage;
-- destination partitions;
-- retry count; and
-- sanitized error stage and summary.
-
-Alerts are designed for a missing Monday run, an over-SLA `Running` run, terminal failure, source-event collapse, and unusual duplicate/rejection growth.
-
-## 7. Configuration blocks
+## 11. Configuration blocks
 
 ### `SupabaseCredentials`
 
@@ -232,34 +286,40 @@ Non-secret block containing:
 - expected country/currency pairs; and
 - publication SLA once leadership supplies the exact Monday time.
 
-## 8. Scheduling and manual execution
+## 12. Scheduling and manual execution
 
 - One scheduled deployment starts each Monday after the prior UTC week closes. The exact Monday-morning time is unresolved in the briefing and must be approved before implementation.
 - `POST /reporting/pipeline-runs` requests the same flow through a deployment or orchestration adapter; FastAPI does not execute ETL inline.
 - Any active scheduled, manual, or backfill run with a live pipeline lease causes a new trigger to return `409`. Serialization begins before extraction, so overlapping windows cannot publish stale snapshots.
 - A bounded historical request uses the same main flow with `trigger_type = backfill`; Part 1 does not require a second flow.
 
-## 9. Recovery behavior
+## 13. Proposed implementation organization
 
-- Source outage: retry extraction; on exhaustion, fail without advancing the watermark.
-- Process crash during extract: restart the entire bounded extract.
-- Transmission retry: deployment is blocked until an integration check proves inventory capture reuses producer `eventId` as `telemetry_events.id`; row data alone cannot prove how its ID was generated.
-- Transform contract failure: stop, preserve rejection evidence, and wait for correction.
-- Destination outage or deadlock: roll back and retry the load task.
-- Crash after destination commit: rerun the same upsert and reconcile before success; the unique key prevents duplicate aggregate rows.
-- Flow crash: heartbeat expiry permits one atomic takeover; a resumed stale process fails lease validation before load.
-- Late data: scheduled 14-day overlap recomputes two complete weeks.
-- Older correction: run a bounded backfill for the affected week.
+All names and paths below are proposals for a later implementation phase. Part 1 creates no modules, Prefect package, or dependency.
 
-## 10. Proposed implementation boundaries
+| Proposed path | Role |
+| --- | --- |
+| `services/reporting/` | HTTP adapters, request/response models, and mount into the existing FastAPI app. Reserved empty boundary already exists. |
+| `services/reporting/router.py` | Proposed routes: pipeline status, manual trigger, and KPI query. |
+| `services/reporting/schemas.py` | Proposed Pydantic request and response models. |
+| `services/reporting/deps.py` | Proposed reuse of existing staff JWT/session dependencies from `services/api`. |
+| `data/pipelines/business_performance/flow.py` | Proposed Prefect flow and task definitions. |
+| `data/pipelines/business_performance/repository.py` | Proposed source, destination, and run-log access. |
+| `data/process/business_performance.py` | Proposed pure validation and KPI calculation. |
 
-Future implementation, not Part 1:
+Dependency direction:
 
-- `data/pipelines/business_performance/flow.py`: flow and task orchestration;
-- `data/pipelines/business_performance/repository.py`: source/destination and run-log access;
-- `data/process/business_performance.py`: pure validation and KPI calculation;
-- `services/reporting/`: HTTP routes and models that call pipeline-facing functions.
-
-Dependencies point from `services/reporting/` to `data/pipelines/`, and from pipeline orchestration to pure `data/process/` functions. Pipeline modules do not import the API service. Existing `services/telemetry/` remains independent.
+- `services/reporting/` → `data/pipelines/` → `data/process/`
+- Pipeline modules do not import the HTTP service.
+- Existing `services/telemetry/` remains independent and is not reused for business KPI calculation.
 
 `services/reporting/` is a module mounted by the existing `services/api` FastAPI application and reuses its staff authentication dependencies; it is not a second deployable API. Part 2 must update packaging so the existing API image includes the reporting and pipeline modules, because its current Docker build context includes only `services/api`.
+
+## 14. Phase 4 acceptance summary
+
+- One main flow is defined: `business_performance_etl_flow`.
+- At least three ETL tasks are defined: extract, transform, and load.
+- Task order, dependencies, parameters, logging, retries, failure propagation, execution status, and recovery are specified.
+- Reliability decisions agree with Phase 3: non-additive upsert, transactional stale-row reconcile, renewable lease, restart-window recovery, and watermark-after-success.
+- Organization uses the reserved `services/reporting/` boundary; module paths are proposals only.
+- No Prefect code, dependency, deployment, or worker is added in this phase.
