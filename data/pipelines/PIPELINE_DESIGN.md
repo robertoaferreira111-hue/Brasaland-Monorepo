@@ -194,6 +194,8 @@ All weekly partitions requested by one run are loaded in one database transactio
 - The destination business key is `(location_id, week_start)`, matching the briefing's unique constraint.
 - Events arriving more than 14 days late require a bounded backfill for the affected week.
 
+`telemetry_events` is designed as append-only and has no verified `updated_at` column, so v1 must treat an in-place source mutation as a contract violation. If a future source is allowed to update existing records, it must expose a stable primary key and `updated_at`; extraction then advances a composite `(updated_at, primary_key)` watermark, rereads the overlap, and recomputes/upserts every affected ISO-week partition. Without those fields, the pipeline cannot reliably detect source updates and must not claim to support them.
+
 ### 6.2 Load failure and second-run behavior
 
 If a run fails after preparing all rows or during load:
@@ -293,7 +295,7 @@ Full request, response, concurrency, and error contracts are in [`../../docs/tel
 - `public.telemetry_events` is read-only for this pipeline.
 - Business output is written only under `reporting`.
 - `services/telemetry/analysis.py` and `GET /telemetry/report` remain technical reporting and are not imported or changed.
-- `services/reporting/` is a separate future API boundary.
+- `services/reporting/` is a future reporting module mounted into the existing `services/api` FastAPI application, not a second deployable API or auth stack. Its routes reuse the current staff JWT/session dependencies.
 - `data/pipelines/` owns orchestration and pipeline-facing query functions.
 - `data/process/` will own pure reusable validation, normalization, and KPI calculations in the implementation milestone.
 - This design adds no migration, flow, task, dependency, or route.
@@ -307,4 +309,5 @@ Before Part 2 implementation:
 3. establish an authoritative registry for all 14 locations so missing capture can be distinguished from zero activity;
 4. confirm retention is long enough for the required backfill window;
 5. define the Monday publication SLA time; the briefing requires Monday morning but gives no exact hour; and
-6. choose monetary decimal precision in the implementation migration while retaining the briefing's `numeric` type.
+6. choose monetary decimal precision in the implementation migration while retaining the briefing's `numeric` type; and
+7. package `services/reporting/` and `data/pipelines/` into the existing API deployment image, whose current build context includes only `services/api`, without creating a second service.

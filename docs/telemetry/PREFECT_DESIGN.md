@@ -260,3 +260,5 @@ Future implementation, not Part 1:
 - `services/reporting/`: HTTP routes and models that call pipeline-facing functions.
 
 Dependencies point from `services/reporting/` to `data/pipelines/`, and from pipeline orchestration to pure `data/process/` functions. Pipeline modules do not import the API service. Existing `services/telemetry/` remains independent.
+
+`services/reporting/` is a module mounted by the existing `services/api` FastAPI application and reuses its staff authentication dependencies; it is not a second deployable API. Part 2 must update packaging so the existing API image includes the reporting and pipeline modules, because its current Docker build context includes only `services/api`.

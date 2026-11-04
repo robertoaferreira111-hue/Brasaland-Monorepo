@@ -110,7 +110,7 @@ The destination unique key is `(location_id, week_start)`.
 
 ## Reporting API contracts
 
-These routes are proposed under `services/reporting/`. They remain separate from the unchanged technical `GET /telemetry/report`.
+These routes are proposed under `services/reporting/`. That module is mounted into the existing `services/api` FastAPI application and reuses its staff JWT/session dependencies; it is not a second API or auth stack. The routes remain separate from the unchanged technical `GET /telemetry/report`.
 
 ### GET `/reporting/pipeline-runs/latest`
 
