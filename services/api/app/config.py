@@ -41,6 +41,7 @@ class Settings:
     email_from: str
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
+    database_url: str | None = None
     min_password_length: int = 8
 
     @property
@@ -68,6 +69,7 @@ def get_settings() -> Settings:
         email_from=os.getenv("EMAIL_FROM", "Brasaland <onboarding@resend.dev>"),
         supabase_url=os.getenv("SUPABASE_URL") or None,
         supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY") or None,
+        database_url=os.getenv("DATABASE_URL") or None,
     )
 
 
