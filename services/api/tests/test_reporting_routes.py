@@ -56,21 +56,26 @@ def test_trigger_calls_the_flow_and_a_live_lease_conflicts(monkeypatch) -> None:
     def _run(week_start, trigger_type):
         called["week_start"] = week_start
         called["trigger_type"] = trigger_type
-        return {"run_id": "8bb7302d-cbe7-49fc-ae56-3dddb12739a4", "status": "success"}
+        return {
+            "run_id": "8bb7302d-cbe7-49fc-ae56-3dddb12739a4",
+            "status": "running",
+            "trigger_type": trigger_type,
+        }
 
-    monkeypatch.setattr(reporting, "execute_flow", _run)
+    monkeypatch.setattr(reporting, "start_pipeline_run", _run)
     accepted = client.post(
         "/reporting/pipeline-runs",
-        json={"week_start": "2026-10-12", "trigger_type": "manual"},
+        json={"week_start": "2026-10-12", "trigger_type": "backfill"},
     )
     assert accepted.status_code == 202
-    assert called == {"week_start": date(2026, 10, 12), "trigger_type": "manual"}
+    assert accepted.json()["status"] == "running"
+    assert called == {"week_start": date(2026, 10, 12), "trigger_type": "backfill"}
 
     def _busy(week_start, trigger_type):
         del week_start, trigger_type
         raise reporting.PipelineLeaseHeld("8bb7302d-cbe7-49fc-ae56-3dddb12739a4")
 
-    monkeypatch.setattr(reporting, "execute_flow", _busy)
+    monkeypatch.setattr(reporting, "start_pipeline_run", _busy)
     conflict = client.post("/reporting/pipeline-runs", json={"trigger_type": "manual"})
     assert conflict.status_code == 409
     assert conflict.json()["detail"]["active_run_id"] == "8bb7302d-cbe7-49fc-ae56-3dddb12739a4"
@@ -101,9 +106,21 @@ def test_weekly_performance_uses_pipeline_rows(monkeypatch) -> None:
     )
     assert response.status_code == 200
     body = response.json()
-    assert body["coverage"] == "observed_locations_only"
-    assert body["locations"][0]["total_purchase_cost"] == 400
-    assert body["locations"][0]["currency"] == "COP"
+    assert set(body) == {"week_start", "locations"}
+    assert body["week_start"] == "2026-10-12"
+    location = body["locations"][0]
+    assert set(location) == {
+        "location_id",
+        "country",
+        "total_purchase_cost",
+        "total_waste_cost",
+        "waste_ratio",
+        "stockout_events_count",
+        "price_alert_events_count",
+        "currency",
+    }
+    assert location["total_purchase_cost"] == 400
+    assert location["currency"] == "COP"
 
 
 def test_non_monday_week_is_rejected() -> None:

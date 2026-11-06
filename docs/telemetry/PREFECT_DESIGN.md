@@ -200,7 +200,7 @@ The flow may use small orchestration tasks without reducing the required three-t
 
 These tasks manage orchestration metadata only; they do not calculate KPIs.
 
-The later control-table migration will enforce at most one unexpired active lease for `pipeline_name`. The flow heartbeats `heartbeat_at` and extends `lease_expires_at`. A trigger presented with a live lease returns `409` and its `run_id`; after expiry, one transaction marks the orphaned run failed and acquires the replacement lease. This reservation occurs before extraction, serializing all scheduled, manual, and backfill windows.
+The later control-table migration is `services/api/supabase/migrations/20261105003000_create_reporting_schema.sql`. It enforces at most one unexpired active lease for `pipeline_name`. The flow heartbeats `heartbeat_at` and extends `lease_expires_at`. A trigger presented with a live lease returns `409` and its `run_id`; after expiry, one transaction marks the orphaned run failed and acquires the replacement lease. This reservation occurs before extraction, serializing all scheduled, manual, and backfill windows.
 
 ## 7. Logging
 

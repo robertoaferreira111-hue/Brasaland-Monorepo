@@ -7,11 +7,13 @@ From the repository root:
 ``python`` is the same command when that executable is on ``PATH``. This machine
 has ``python3`` and not ``python``. If the interpreter does not already have
 ``prefect`` and ``psycopg``, the process re-executes itself with
-``uv run --project services/api``. The first run starts a local Prefect API on
-127.0.0.1:8765 and keeps its files under ``.prefect-local/`` so retries, the
-transform cache, and task state survive the next command. Later runs reuse
-that API. Business rows are read and written only through ``DATABASE_URL`` on
-the local dev Postgres.
+``uv run --project services/api``. The same run with uv named explicitly is
+``uv run --project services/api python data/pipelines/pipeline.py``. A run with
+no arguments is recorded as ``trigger_type`` ``schedule``. The first run starts
+a local Prefect API on 127.0.0.1:8765 and keeps its files under
+``.prefect-local/`` so retries, the transform cache, and task state survive
+the next command. Later runs reuse that API. Business rows are read and
+written only through ``DATABASE_URL`` on the local dev Postgres.
 
 The flow reads public.telemetry_events and writes only reporting tables.
 It does not modify telemetry_events.
@@ -31,7 +33,6 @@ import time
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -73,25 +74,24 @@ def _ensure_interpreter() -> None:
 _ensure_interpreter()
 sys.path.insert(0, str(_API_ROOT))
 sys.path.insert(0, str(_PIPELINES))
+sys.path.insert(0, str(_REPO / "data" / "process"))
 
 import db  # noqa: E402
 import prefect  # noqa: E402
 import psycopg  # noqa: E402
 from prefect import flow, task  # noqa: E402
 from prefect.context import refresh_global_settings_context  # noqa: E402
+from weekly_location_kpis import (  # noqa: E402
+    EVENT_TYPES,
+    TransformError,
+    aggregate_weekly_location_kpis as transform_events,
+)
 
 logger = logging.getLogger("brasaland.pipeline")
 
 PIPELINE_NAME = "weekly_location_cost_waste"
-EVENT_TYPES = (
-    "inbound_order_created",
-    "outbound_order_created",
-    "stock_waste_registered",
-    "stock_threshold_triggered",
-    "ingredient_price_variance_detected",
-)
-KPI_EVENT_TYPES = frozenset(EVENT_TYPES) - {"outbound_order_created"}
-CURRENCY_FOR_COUNTRY = {"CO": "COP", "US": "USD"}
+# One schedule setting. The Monday publication time is pending confirmation.
+PIPELINE_SCHEDULE = os.environ.get("BRASALAND_PIPELINE_SCHEDULE", "weekly-monday")
 LEASE = timedelta(minutes=15)
 HEARTBEAT_INTERVAL = 5
 PREFECT_PORT = 8765
@@ -103,13 +103,7 @@ TAKEOVER_REASON = (
     "failed and took over."
 )
 _ATTEMPT_COUNTS: dict[str, dict[str, int]] = {}
-_REQUIRED = {
-    "inbound_order_created": ("location_id", "country", "quantity", "unit_cost", "currency"),
-    "outbound_order_created": ("location_id", "country", "quantity", "currency"),
-    "stock_waste_registered": ("location_id", "country", "quantity", "unit_cost", "currency"),
-    "stock_threshold_triggered": ("location_id", "country", "currency"),
-    "ingredient_price_variance_detected": ("location_id", "country", "currency"),
-}
+_PREPARED_RUNS: dict[str, dict[str, Any]] = {}
 
 EXTRACT_SQL = """
 select id::text, timestamp, event_type, tags
@@ -160,10 +154,6 @@ class PipelineLeaseHeld(RuntimeError):
         self.active_run_id = active_run_id
 
 
-class TransformError(RuntimeError):
-    """A KPI-bearing source row cannot be published."""
-
-
 def open_connection() -> Any:
     return db.connect()
 
@@ -212,150 +202,6 @@ def source_window(week_start: date | None, trigger_type: str) -> tuple[datetime,
     start = datetime(start_monday.year, start_monday.month, start_monday.day, tzinfo=timezone.utc)
     end = datetime(end_monday.year, end_monday.month, end_monday.day, tzinfo=timezone.utc)
     return start, end, requested, weeks
-
-
-def _tags(raw: Any) -> dict[str, Any]:
-    if isinstance(raw, dict):
-        return raw
-    raise TransformError("tags must be an object")
-
-
-def _money(quantity: Any, unit_cost: Any) -> Decimal:
-    if isinstance(quantity, bool) or isinstance(unit_cost, bool):
-        raise TransformError("quantity and unit_cost must be numbers")
-    try:
-        amount = Decimal(str(quantity)) * Decimal(str(unit_cost))
-    except Exception as exc:
-        raise TransformError("quantity and unit_cost must be numbers") from exc
-    if amount <= 0:
-        raise TransformError("cost events require a positive quantity and unit_cost")
-    return amount
-
-
-def _week_of(timestamp: Any) -> date:
-    if isinstance(timestamp, str):
-        timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-    if not isinstance(timestamp, datetime) or timestamp.tzinfo is None:
-        raise TransformError("timestamp must be timezone-aware")
-    day = timestamp.astimezone(timezone.utc).date()
-    return day - timedelta(days=day.weekday())
-
-
-def transform_events(events: list[dict[str, Any]]) -> dict[str, Any]:
-    """Validate source rows and replace each location-week with a full recompute."""
-    seen: dict[str, dict[str, Any]] = {}
-    rejected = 0
-    skipped = 0
-    rejections: list[dict[str, str]] = []
-    usable: list[dict[str, Any]] = []
-    for event in events:
-        event_type = event.get("event_type")
-        if event_type not in EVENT_TYPES:
-            rejected += 1
-            rejections.append(
-                {
-                    "id": str(event.get("id")),
-                    "event_type": str(event_type),
-                    "reason": "unsupported event type",
-                }
-            )
-            continue
-        try:
-            tags = _tags(event.get("tags"))
-            missing = [key for key in _REQUIRED[event_type] if key not in tags]
-            if missing:
-                raise TransformError("missing " + ", ".join(missing))
-            country = tags["country"]
-            currency = tags["currency"]
-            if CURRENCY_FOR_COUNTRY.get(country) != currency:
-                raise TransformError("country/currency mismatch")
-            identity = str(event["id"])
-            payload = {"event_type": event_type, "timestamp": str(event["timestamp"]), "tags": tags}
-            if identity in seen and seen[identity] != payload:
-                raise TransformError("conflicting payload for one id")
-            if identity in seen:
-                skipped += 1
-                continue
-            seen[identity] = payload
-            usable.append(
-                {
-                    "id": identity,
-                    "event_type": event_type,
-                    "week": _week_of(event["timestamp"]),
-                    "tags": tags,
-                }
-            )
-        except TransformError as exc:
-            if event_type == "outbound_order_created":
-                rejected += 1
-                rejections.append(
-                    {
-                        "id": str(event.get("id")),
-                        "event_type": str(event_type),
-                        "reason": str(exc),
-                    }
-                )
-                continue
-            raise
-    buckets: dict[tuple[str, str, date, str], dict[str, Any]] = {}
-    location_pairs: dict[tuple[str, date], set[tuple[str, str]]] = {}
-    for event in usable:
-        if event["event_type"] == "outbound_order_created":
-            continue
-        tags = event["tags"]
-        key = (tags["location_id"], tags["country"], event["week"], tags["currency"])
-        location_pairs.setdefault((tags["location_id"], event["week"]), set()).add(
-            (tags["country"], tags["currency"])
-        )
-        bucket = buckets.setdefault(
-            key,
-            {
-                "location_id": tags["location_id"],
-                "country": tags["country"],
-                "week_start": event["week"],
-                "currency": tags["currency"],
-                "total_purchase_cost": Decimal("0"),
-                "total_waste_cost": Decimal("0"),
-                "stockout_ids": set(),
-                "price_ids": set(),
-            },
-        )
-        if event["event_type"] == "inbound_order_created":
-            bucket["total_purchase_cost"] += _money(tags["quantity"], tags["unit_cost"])
-        elif event["event_type"] == "stock_waste_registered":
-            bucket["total_waste_cost"] += _money(tags["quantity"], tags["unit_cost"])
-        elif event["event_type"] == "stock_threshold_triggered":
-            bucket["stockout_ids"].add(event["id"])
-        elif event["event_type"] == "ingredient_price_variance_detected":
-            bucket["price_ids"].add(event["id"])
-    for pairs in location_pairs.values():
-        if len(pairs) > 1:
-            raise TransformError("country/currency conflict for one location-week")
-    rows = []
-    for bucket in buckets.values():
-        purchase = bucket["total_purchase_cost"]
-        waste = bucket["total_waste_cost"]
-        ratio = Decimal("0") if purchase == 0 else waste / purchase
-        rows.append(
-            {
-                "location_id": bucket["location_id"],
-                "country": bucket["country"],
-                "week_start": bucket["week_start"],
-                "total_purchase_cost": purchase,
-                "total_waste_cost": waste,
-                "waste_ratio": ratio,
-                "stockout_events_count": len(bucket["stockout_ids"]),
-                "price_alert_events_count": len(bucket["price_ids"]),
-                "currency": bucket["currency"],
-            }
-        )
-    rows.sort(key=lambda row: (row["week_start"], row["country"], row["location_id"]))
-    return {
-        "rows": rows,
-        "rows_rejected": rejected,
-        "rows_skipped_duplicate": skipped,
-        "rejections": rejections,
-    }
 
 
 def _fetch_page(connection: Any, bounds: dict[str, Any]) -> list[dict[str, Any]]:
@@ -770,9 +616,13 @@ def _fail(run: dict[str, Any], stage: str, exc: BaseException) -> None:
 def business_performance_etl_flow(
     week_start: date | None = None,
     trigger_type: str = "manual",
+    prepared_run_id: str | None = None,
 ) -> dict[str, Any]:
     """One Weekly Location Cost & Waste run. A second live run is refused."""
-    run = create_run(week_start, trigger_type)
+    if prepared_run_id:
+        run = _PREPARED_RUNS.pop(prepared_run_id)
+    else:
+        run = create_run(week_start, trigger_type)
     stop = threading.Event()
     beater = threading.Thread(
         target=_heartbeat_loop,
@@ -983,9 +833,9 @@ def ensure_local_prefect() -> str:
 
 def execute_flow(
     week_start: date | None = None,
-    trigger_type: str = "manual",
+    trigger_type: str = "schedule",
 ) -> dict[str, Any]:
-    """Run one pass through the Prefect engine. Call the flow, not its raw function."""
+    """Run one pass through the Prefect engine and wait until it finishes."""
     from app.config import get_settings
 
     if not get_settings().database_url:
@@ -1002,6 +852,38 @@ def execute_flow(
         raise
 
 
+def _run_prepared(run_id: str) -> None:
+    try:
+        business_performance_etl_flow(prepared_run_id=run_id)
+    except Exception:
+        logger.exception("background pipeline run failed")
+
+
+def start_pipeline_run(week_start: date | None, trigger_type: str) -> dict[str, Any]:
+    """Acquire the lease, then let the flow finish on a background thread."""
+    from app.config import get_settings
+
+    if not get_settings().database_url:
+        raise RuntimeError("DATABASE_URL is not set")
+    ensure_local_prefect()
+    run = create_run(week_start, trigger_type)
+    _PREPARED_RUNS[run["run_id"]] = run
+    threading.Thread(
+        target=_run_prepared,
+        args=(run["run_id"],),
+        name=f"pipeline-{run['run_id']}",
+        daemon=True,
+    ).start()
+    return {
+        "run_id": run["run_id"],
+        "pipeline_name": PIPELINE_NAME,
+        "week_start": run["requested_week_start"],
+        "status": "running",
+        "trigger_type": trigger_type,
+        "accepted_at": run["started_at"],
+    }
+
+
 def _find_lease(exc: BaseException) -> PipelineLeaseHeld | None:
     seen: set[int] = set()
     current: BaseException | None = exc
@@ -1015,7 +897,7 @@ def _find_lease(exc: BaseException) -> PipelineLeaseHeld | None:
 
 def main() -> int:
     try:
-        result = execute_flow(trigger_type="manual")
+        result = execute_flow(trigger_type="schedule")
     except PipelineLeaseHeld as exc:
         print(f"pipeline lease held by {exc.active_run_id}", file=sys.stderr)
         return 1

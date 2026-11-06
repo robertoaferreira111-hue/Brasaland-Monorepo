@@ -54,6 +54,7 @@ def test_tasks_declare_retries_cache_and_return_state() -> None:
     execute_source = source.split("def execute_flow", 1)[1].split("def _find_lease", 1)[0]
     assert "business_performance_etl_flow(" in execute_source
     assert ".fn" not in execute_source
+    assert 'execute_flow(trigger_type="schedule")' in source
     assert "transient" in pipeline.extract_telemetry_events.fn.__doc__
     assert "on conflict (location_id, week_start) do update" in pipeline.UPSERT_SQL.lower()
     assert "+" not in pipeline.UPSERT_SQL.split("do update", 1)[1]
@@ -183,7 +184,8 @@ def test_country_currency_mismatch_and_missing_cost_are_rejected() -> None:
 
 def test_completed_week_is_the_previous_utc_monday() -> None:
     assert pipeline.last_completed_week_start(date(2026, 11, 5)) == date(2026, 10, 26)
-    start, end, requested, weeks = pipeline.source_window(date(2026, 10, 12), "manual")
+    assert pipeline.source_window(None, "schedule") == pipeline.source_window(None, "manual")
+    start, end, requested, weeks = pipeline.source_window(date(2026, 10, 12), "backfill")
     assert requested == date(2026, 10, 12)
     assert weeks == [date(2026, 10, 12)]
     assert start == datetime(2026, 10, 12, tzinfo=timezone.utc)

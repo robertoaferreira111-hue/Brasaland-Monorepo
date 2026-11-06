@@ -2,12 +2,20 @@
 
 These routes call data/pipelines/pipeline.py. They do not reimplement extract,
 transform, or load, and they do not write telemetry_events.
+
+GET /reporting/weekly-location-performance returns only week_start and locations.
+Each location has the eight briefing fields. There is no location registry, so
+the list is the locations observed in telemetry for that week.
+
+Errors follow the staff API: 401 when the caller is not authenticated, 422 when
+week_start is not a Monday or is not a completed week, 404 when that week has
+no published rows, and 503 when reporting storage is unavailable.
 """
 
 from __future__ import annotations
 
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
@@ -23,33 +31,42 @@ sys.path.insert(0, str(_PIPELINES))
 from app.deps import current_user_email  # noqa: E402
 from pipeline import (  # noqa: E402
     PipelineLeaseHeld,
-    execute_flow,
     get_latest_pipeline_run,
     get_weekly_location_performance,
     last_completed_week_start,
+    start_pipeline_run,
 )
 
 router = APIRouter(prefix="/reporting", tags=["reporting"])
+
+_LOCATION_FIELDS = (
+    "location_id",
+    "country",
+    "total_purchase_cost",
+    "total_waste_cost",
+    "waste_ratio",
+    "stockout_events_count",
+    "price_alert_events_count",
+    "currency",
+)
 
 
 class TriggerBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     week_start: date | None = None
-    trigger_type: Literal["manual", "backfill"] = "manual"
+    trigger_type: Literal["manual", "backfill", "schedule"] | None = None
 
 
-class LocationRow(BaseModel):
+class LocationPerformance(BaseModel):
     location_id: str
     country: str
-    week_start: date
     total_purchase_cost: float
     total_waste_cost: float
     waste_ratio: float
     stockout_events_count: int
     price_alert_events_count: int
     currency: str
-    computed_at: datetime
 
 
 def _storage_unavailable(exc: Exception) -> HTTPException:
@@ -68,6 +85,27 @@ def _require_monday(value: date, name: str) -> date:
     return value
 
 
+def _accepted_trigger(body: TriggerBody) -> str:
+    if body.trigger_type == "schedule":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="schedule is not accepted on this route",
+        )
+    if body.week_start is None:
+        if body.trigger_type not in (None, "manual"):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="an explicit week_start is required for a backfill",
+            )
+        return "manual"
+    if body.trigger_type not in (None, "backfill"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="an explicit week_start is a backfill",
+        )
+    return "backfill"
+
+
 @router.get("/pipeline-runs/latest")
 def latest_pipeline_run(_email: str = Depends(current_user_email)) -> dict[str, Any]:
     try:
@@ -84,7 +122,8 @@ def trigger_pipeline_run(body: TriggerBody, _email: str = Depends(current_user_e
     try:
         if body.week_start is not None:
             _require_monday(body.week_start, "week_start")
-        return execute_flow(body.week_start, body.trigger_type)
+        trigger_type = _accepted_trigger(body)
+        return start_pipeline_run(body.week_start, trigger_type)
     except PipelineLeaseHeld as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -120,16 +159,11 @@ def weekly_location_performance(
         rows = get_weekly_location_performance(week_start, week_end, location_id, country)
     except Exception as exc:
         raise _storage_unavailable(exc) from exc
-    if not rows and (week_start is not None or week_end is not None):
+    if not rows:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No published week in the requested range")
-    locations = [LocationRow.model_validate(row).model_dump(mode="json") for row in rows]
-    start = week_start or (rows[0]["week_start"] if rows else None)
-    end = week_end or start
-    return {
-        "week_start": start,
-        "week_end": end,
-        "filters": {"location_id": location_id, "country": country},
-        "data_status": "complete" if locations else "no_rows",
-        "coverage": "observed_locations_only",
-        "locations": locations,
-    }
+    published = week_start or rows[0]["week_start"]
+    locations = [
+        LocationPerformance.model_validate({field: row[field] for field in _LOCATION_FIELDS}).model_dump(mode="json")
+        for row in rows
+    ]
+    return {"week_start": published, "locations": locations}

@@ -10,7 +10,19 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 API_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _repo_root() -> Path:
+    configured = os.environ.get("BRASALAND_ROOT")
+    if configured:
+        return Path(configured)
+    here = Path(__file__).resolve()
+    if len(here.parents) > 3:
+        return here.parents[3]
+    return API_ROOT
+
+
+REPO_ROOT = _repo_root()
 
 
 def _load_env_files() -> None:

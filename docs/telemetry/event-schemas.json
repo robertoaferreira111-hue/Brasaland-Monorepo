@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "docs/telemetry/event-schemas.json",
   "title": "Brasaland telemetry event schemas",
-  "description": "JSON Schema draft-07 contract for telemetry events. Each event instance must match exactly one branch of oneOf. Inventory event types are required by brasaland-BRIEFING.md and have no route in this repository. Supplier-directory and platform events match verified API behavior. schemaVersion on every event is 1.0.0. Property objects are closed allowlists.",
+  "description": "JSON Schema draft-07 contract for telemetry events. Each event instance must match exactly one branch of oneOf. Inventory event types are required by brasaland-BRIEFING.md and are accepted by POST /telemetry/events. Supplier-directory and platform events match verified API behavior. schemaVersion on every event is 1.0.0. Property objects are closed allowlists.",
   "x-schemaVersion": "1.0.0",
   "x-eventCatalog": [
     {"event_type": "inbound_order_created", "entity_action": "inbound_order.created", "category": "inventory_receiving", "delivery": "stream", "mandatory": true, "evidence": "briefing"},

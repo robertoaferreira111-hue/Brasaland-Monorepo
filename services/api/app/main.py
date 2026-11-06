@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -32,7 +33,21 @@ from app.telemetry_path import ensure_telemetry_on_path
 ensure_telemetry_on_path()
 from router import router as telemetry_report_router  # noqa: E402
 
-_REPORTING_ROUTER = Path(__file__).resolve().parents[2] / "reporting" / "router.py"
+def _reporting_router_file() -> Path:
+    here = Path(__file__).resolve()
+    candidates = []
+    root = os.environ.get("BRASALAND_ROOT")
+    if root:
+        candidates.append(Path(root) / "services" / "reporting" / "router.py")
+    candidates.append(here.parents[2] / "reporting" / "router.py")
+    candidates.append(Path("/opt/brasaland/services/reporting/router.py"))
+    for path in candidates:
+        if path.is_file():
+            return path
+    raise RuntimeError("services/reporting/router.py is missing")
+
+
+_REPORTING_ROUTER = _reporting_router_file()
 _reporting_spec = importlib.util.spec_from_file_location("brasaland_reporting_router", _REPORTING_ROUTER)
 if _reporting_spec is None or _reporting_spec.loader is None:
     raise RuntimeError("services/reporting/router.py is missing")

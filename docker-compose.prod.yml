@@ -3,10 +3,13 @@ name: brasaland
 services:
   api:
     build:
-      context: ./services/api
+      context: .
+      dockerfile: services/api/Dockerfile
       target: production
     env_file:
       - .env
+    environment:
+      BRASALAND_ROOT: /opt/brasaland
     ports:
       - "${API_PORT:-8000}:8000"
     networks:
