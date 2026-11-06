@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
+import psycopg
 import pytest
 
 _PIPELINES = Path(__file__).resolve().parents[3] / "data" / "pipelines"
@@ -39,12 +40,77 @@ def _purchase(**extra) -> dict:
 def test_tasks_declare_retries_cache_and_return_state() -> None:
     assert pipeline.extract_telemetry_events.retries == 3
     assert pipeline.load_weekly_location_performance.retries == 3
+    assert pipeline.extract_telemetry_events.retry_condition_fn is pipeline._retry_transient
+    assert pipeline.extract_telemetry_events.retry_jitter_factor == 0.2
     assert pipeline.transform_weekly_location_performance.cache_key_fn is not None
     assert pipeline.transform_weekly_location_performance.cache_expiration is not None
     source = Path(pipeline.__file__).read_text(encoding="utf-8")
-    assert "return_state=True" in source
+    flow_source = source.split("def business_performance_etl_flow", 1)[1].split("def _prefect_healthy", 1)[0]
+    assert "return_state=True" in flow_source
+    assert "write_eval_snapshot(" in flow_source
+    for line in flow_source.splitlines():
+        if "extract_telemetry_events" in line:
+            assert "return_state" not in line
+    execute_source = source.split("def execute_flow", 1)[1].split("def _find_lease", 1)[0]
+    assert "business_performance_etl_flow(" in execute_source
+    assert ".fn" not in execute_source
+    assert "transient" in pipeline.extract_telemetry_events.fn.__doc__
     assert "on conflict (location_id, week_start) do update" in pipeline.UPSERT_SQL.lower()
     assert "+" not in pipeline.UPSERT_SQL.split("do update", 1)[1]
+
+
+def test_cache_key_ignores_run_id_and_changes_with_input() -> None:
+    events = [_event("11111111-1111-1111-1111-111111111111", "inbound_order_created", _purchase())]
+    window_start = datetime(2026, 10, 12, tzinfo=timezone.utc)
+    window_end = datetime(2026, 10, 19, tzinfo=timezone.utc)
+    params = {
+        "run_id": "run-a",
+        "events": events,
+        "window_start": window_start,
+        "window_end": window_end,
+    }
+    first = pipeline._transform_cache_key(None, params)
+    same_input = pipeline._transform_cache_key(None, {**params, "run_id": "run-b"})
+    assert first == same_input
+    changed_events = pipeline._transform_cache_key(None, {**params, "events": []})
+    changed_window = pipeline._transform_cache_key(
+        None,
+        {**params, "window_end": datetime(2026, 10, 26, tzinfo=timezone.utc)},
+    )
+    assert changed_events != first
+    assert changed_window != first
+
+
+def test_retries_skip_validation_and_accept_connection_errors() -> None:
+    class _State:
+        def __init__(self, data: BaseException) -> None:
+            self.data = data
+
+    assert pipeline._retry_transient(None, None, _State(psycopg.OperationalError("reset")))
+    assert pipeline._retry_transient(None, None, _State(TimeoutError("timed out")))
+    assert not pipeline._retry_transient(None, None, _State(pipeline.TransformError("bad row")))
+    assert not pipeline._retry_transient(None, None, _State(ValueError("contract")))
+
+
+def test_live_lease_is_held_and_an_expired_lease_can_be_taken() -> None:
+    now = datetime(2026, 11, 5, 12, tzinfo=timezone.utc)
+    assert pipeline.lease_is_live(now + timedelta(minutes=1), now)
+    assert not pipeline.lease_is_live(now - timedelta(seconds=1), now)
+    assert not pipeline.lease_is_live(None, now)
+
+
+def test_malformed_outbound_is_rejected_without_failing() -> None:
+    bad = _event(
+        "66666666-6666-6666-6666-666666666666",
+        "outbound_order_created",
+        {"location_id": "loc_co_01"},
+    )
+    good = _event("11111111-1111-1111-1111-111111111111", "inbound_order_created", _purchase())
+    result = pipeline.transform_events([bad, good])
+    assert result["rows_rejected"] == 1
+    assert result["rejections"][0]["event_type"] == "outbound_order_created"
+    assert result["rejections"][0]["reason"]
+    assert result["rows"][0]["total_purchase_cost"] == Decimal("400")
 
 
 def test_transform_replaces_kpis_and_keeps_a_zero_purchase_ratio() -> None:

@@ -12,3 +12,5 @@ services/api/.venv/
 services/telemetry/.venv/
 services/api/.pytest_cache/
 services/api/data/*.json
+.prefect-local/
+data/eval/*.json

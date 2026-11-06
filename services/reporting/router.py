@@ -23,7 +23,7 @@ sys.path.insert(0, str(_PIPELINES))
 from app.deps import current_user_email  # noqa: E402
 from pipeline import (  # noqa: E402
     PipelineLeaseHeld,
-    business_performance_etl_flow,
+    execute_flow,
     get_latest_pipeline_run,
     get_weekly_location_performance,
     last_completed_week_start,
@@ -84,7 +84,7 @@ def trigger_pipeline_run(body: TriggerBody, _email: str = Depends(current_user_e
     try:
         if body.week_start is not None:
             _require_monday(body.week_start, "week_start")
-        return business_performance_etl_flow.fn(body.week_start, body.trigger_type)
+        return execute_flow(body.week_start, body.trigger_type)
     except PipelineLeaseHeld as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

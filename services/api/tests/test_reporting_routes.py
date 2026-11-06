@@ -58,8 +58,7 @@ def test_trigger_calls_the_flow_and_a_live_lease_conflicts(monkeypatch) -> None:
         called["trigger_type"] = trigger_type
         return {"run_id": "8bb7302d-cbe7-49fc-ae56-3dddb12739a4", "status": "success"}
 
-    _run.fn = _run
-    monkeypatch.setattr(reporting, "business_performance_etl_flow", _run)
+    monkeypatch.setattr(reporting, "execute_flow", _run)
     accepted = client.post(
         "/reporting/pipeline-runs",
         json={"week_start": "2026-10-12", "trigger_type": "manual"},
@@ -71,8 +70,7 @@ def test_trigger_calls_the_flow_and_a_live_lease_conflicts(monkeypatch) -> None:
         del week_start, trigger_type
         raise reporting.PipelineLeaseHeld("8bb7302d-cbe7-49fc-ae56-3dddb12739a4")
 
-    _busy.fn = _busy
-    monkeypatch.setattr(reporting, "business_performance_etl_flow", _busy)
+    monkeypatch.setattr(reporting, "execute_flow", _busy)
     conflict = client.post("/reporting/pipeline-runs", json={"trigger_type": "manual"})
     assert conflict.status_code == 409
     assert conflict.json()["detail"]["active_run_id"] == "8bb7302d-cbe7-49fc-ae56-3dddb12739a4"
