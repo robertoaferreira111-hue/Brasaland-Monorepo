@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import importlib.util
 import logging
+import sys
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
@@ -28,6 +31,15 @@ from app.telemetry_path import ensure_telemetry_on_path
 
 ensure_telemetry_on_path()
 from router import router as telemetry_report_router  # noqa: E402
+
+_REPORTING_ROUTER = Path(__file__).resolve().parents[2] / "reporting" / "router.py"
+_reporting_spec = importlib.util.spec_from_file_location("brasaland_reporting_router", _REPORTING_ROUTER)
+if _reporting_spec is None or _reporting_spec.loader is None:
+    raise RuntimeError("services/reporting/router.py is missing")
+_reporting_module = importlib.util.module_from_spec(_reporting_spec)
+sys.modules["brasaland_reporting_router"] = _reporting_module
+_reporting_spec.loader.exec_module(_reporting_module)
+reporting_router = _reporting_module.router
 
 logger = logging.getLogger("brasaland.api")
 
@@ -58,6 +70,7 @@ app.include_router(profiles.router)
 app.include_router(suppliers_router)
 app.include_router(telemetry_report_router)
 app.include_router(telemetry_ingest_router)
+app.include_router(reporting_router)
 
 
 @app.get("/health")

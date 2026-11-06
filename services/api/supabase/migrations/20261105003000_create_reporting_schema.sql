@@ -36,6 +36,7 @@ create table reporting.pipeline_runs (
   watermark_from timestamptz not null,
   watermark_to timestamptz not null,
   rows_extracted integer not null,
+  records_processed integer not null,
   rows_transformed integer not null,
   rows_loaded integer not null,
   rows_rejected integer not null,
