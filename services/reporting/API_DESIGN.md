@@ -214,12 +214,11 @@ After a successful completed week, a later manual request for the same `week_sta
 
 | Parameter | Required | Role |
 | --- | --- | --- |
-| `week_start` | No | Inclusive lower ISO Monday of the requested date range. Defaults to the most recent successfully computed week when both range bounds are omitted. |
-| `week_end` | No | Inclusive upper ISO Monday. Defaults to `week_start` when only `week_start` is supplied. Must be a Monday and `>= week_start`. |
+| `week_start` | No | ISO Monday of the requested week. Defaults to the most recent successfully computed week when omitted. Must be a Monday and a completed week. |
 | `location_id` | No | Requested location dimension filter. Exact match. |
 | `country` | No | Requested country dimension filter. Allowed values: `CO`, `US`. |
 
-Date range is expressed in ISO week starts, matching the Phase 2 destination grain. The inclusive Monday range `[week_start, week_end]` selects every stored week in that window.
+The route accepts one week. `week_start` selects that Monday. When it is omitted, the route returns the latest published week.
 
 ### Requested dimensions and KPI values
 
@@ -274,7 +273,7 @@ Authorization: Bearer <staff_access_token>
 | --- | --- |
 | `401 Unauthorized` | Missing or invalid staff token. |
 | `404 Not Found` | No successfully published data for the requested week range. |
-| `422 Unprocessable Entity` | Non-Monday dates, `week_end < week_start`, incomplete/future week, or invalid `country`. |
+| `422 Unprocessable Entity` | Non-Monday `week_start`, incomplete/future week, or invalid `country`. |
 | `503 Service Unavailable` | Destination storage cannot be read. |
 
 ## 6. Proposed function mapping
@@ -283,7 +282,7 @@ Authorization: Bearer <staff_access_token>
 | --- | --- |
 | `GET /reporting/pipeline-runs/latest` | `get_latest_pipeline_run()` |
 | `POST /reporting/pipeline-runs` | `start_pipeline_run(week_start, trigger_type)` |
-| `GET /reporting/weekly-location-performance` | `get_weekly_location_performance(week_start, week_end, location_id, country)` |
+| `GET /reporting/weekly-location-performance` | `get_weekly_location_performance(week_start, week_start, location_id, country)` |
 
 ETL logic stays in `data/pipelines/` and `data/process/`. `services/reporting/` performs HTTP validation and serialization only.
 

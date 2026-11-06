@@ -144,19 +144,14 @@ def trigger_pipeline_run(body: TriggerBody, _email: str = Depends(current_user_e
 @router.get("/weekly-location-performance")
 def weekly_location_performance(
     week_start: date | None = None,
-    week_end: date | None = None,
     location_id: str | None = None,
     country: str | None = Query(default=None, pattern="^(CO|US)$"),
     _email: str = Depends(current_user_email),
 ) -> dict[str, Any]:
     if week_start is not None:
         _require_monday(week_start, "week_start")
-    if week_end is not None:
-        _require_monday(week_end, "week_end")
-    if week_start is not None and week_end is not None and week_end < week_start:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="week_end is before week_start")
     try:
-        rows = get_weekly_location_performance(week_start, week_end, location_id, country)
+        rows = get_weekly_location_performance(week_start, week_start, location_id, country)
     except Exception as exc:
         raise _storage_unavailable(exc) from exc
     if not rows:

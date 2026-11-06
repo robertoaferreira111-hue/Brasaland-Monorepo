@@ -285,7 +285,7 @@ python3 data/pipelines/pipeline.py
 uv run --project services/api python data/pipelines/pipeline.py
 ```
 
-`python3` re-executes through `uv run --project services/api` when the current interpreter does not have `prefect` and `psycopg`. The schedule is the single setting `BRASALAND_PIPELINE_SCHEDULE`, default `weekly-monday`, read in `pipeline.py` as `PIPELINE_SCHEDULE`. The Monday publication clock time is pending confirmation.
+`python3` re-executes through `uv run --project services/api` when the current interpreter does not have `prefect` and `psycopg`, so `uv` must be on `PATH` for that re-exec. The command reads `DATABASE_URL` from the environment or from `.env` at the repository root. That URL is the local dev Postgres, not Supabase. The reporting tables must already exist in that database. The schedule is the single setting `BRASALAND_PIPELINE_SCHEDULE`, default `weekly-monday`, read in `pipeline.py` as `PIPELINE_SCHEDULE`. The Monday publication clock time is pending confirmation.
 
 ## 10. Application integration
 
@@ -295,7 +295,7 @@ The API contracts live in `services/reporting/router.py`. That module contains H
 | --- | --- |
 | `GET /reporting/pipeline-runs/latest` | `get_latest_pipeline_run()` |
 | `POST /reporting/pipeline-runs` | `start_pipeline_run(week_start, trigger_type)` |
-| `GET /reporting/weekly-location-performance` | `get_weekly_location_performance(week_start, week_end, location_id, country)` |
+| `GET /reporting/weekly-location-performance` | `get_weekly_location_performance(week_start, week_start, location_id, country)` |
 
 `POST` acquires the lease inside `start_pipeline_run` before it returns `run_id` with status `running`. `business_performance_etl_flow` then finishes on a background thread. A command-line run calls `execute_flow`, which waits for the same flow. A command with no arguments uses `trigger_type` `schedule`. An API call with no week uses `manual`. An API call with an explicit week uses `backfill`. `schedule` on `POST` is rejected.
 
