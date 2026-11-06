@@ -116,3 +116,18 @@ docker run --rm -p 8000:8000 \
   brasaland-api
 docker exec <container> python -c "from pathlib import Path; p=Path('/app/app/telemetry_event_schema.json'); print(p.exists(), p.stat().st_size)"
 ```
+
+## Reporting schema and dev inventory seed
+
+Apply `migrations/20261105003000_create_reporting_schema.sql` only to a database confirmed as non-production. It creates `reporting.weekly_location_performance` and `reporting.pipeline_runs`. It does not change `telemetry_events` and it does not apply `PROPOSED_20261102190000_telemetry_events_append_only.sql`. If `public.telemetry_events` is missing on that same database, apply `20261102180000_create_telemetry_events.sql` there first.
+
+Set `DATABASE_URL` in an ignored `.env` (see the root `.env.example`). The pipeline opens that URL only through `data/pipelines/db.py`.
+
+From `services/api`, after the telemetry table exists:
+
+```bash
+uv run python ../../data/dev/seed_inventory_events.py
+uv run python ../../data/dev/seed_inventory_events.py late
+```
+
+The first command inserts the main synthetic batch. The second inserts one purchase dated inside the week of 2026-10-12. Both validate each event with the runtime schema, store `eventId` as `id`, and insert with `on conflict (id) do nothing`. Running either command again does not add rows. Invalid samples live in `data/dev/inventory_seed.py` as `invalid_fixtures()` and are not passed to either command.

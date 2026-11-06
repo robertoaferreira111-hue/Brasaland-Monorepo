@@ -1,6 +1,6 @@
 # Prefect Design: Weekly Location Cost & Waste Pipeline
 
-Status: Phase 4 orchestration design only. Prefect is not a repository dependency, and this milestone adds no flow, task, deployment, worker, or configuration block. Reliability decisions below agree with Phase 3 in root [`PIPELINE_DESIGN.md`](../../PIPELINE_DESIGN.md) and [`data/pipelines/PIPELINE_DESIGN.md`](../../data/pipelines/PIPELINE_DESIGN.md).
+Status: Prefect is a `services/api` dependency, and the flow `business_performance_etl_flow` is implemented in [`data/pipelines/pipeline.py`](../../data/pipelines/pipeline.py). Reliability decisions below agree with Phase 3 in root [`PIPELINE_DESIGN.md`](../../PIPELINE_DESIGN.md) and [`data/pipelines/PIPELINE_DESIGN.md`](../../data/pipelines/PIPELINE_DESIGN.md).
 
 Location: `docs/telemetry/PREFECT_DESIGN.md`, beside the technical telemetry report.
 
@@ -200,7 +200,7 @@ The flow may use small orchestration tasks without reducing the required three-t
 
 These tasks manage orchestration metadata only; they do not calculate KPIs.
 
-The later control-table migration will enforce at most one unexpired active lease for `pipeline_name`. The flow heartbeats `heartbeat_at` and extends `lease_expires_at`. A trigger presented with a live lease returns `409` and its `run_id`; after expiry, one transaction marks the orphaned run failed and acquires the replacement lease. This reservation occurs before extraction, serializing all scheduled, manual, and backfill windows.
+The later control-table migration is `services/api/supabase/migrations/20261105003000_create_reporting_schema.sql`. It enforces at most one unexpired active lease for `pipeline_name`. The flow heartbeats `heartbeat_at` and extends `lease_expires_at`. A trigger presented with a live lease returns `409` and its `run_id`; after expiry, one transaction marks the orphaned run failed and acquires the replacement lease. This reservation occurs before extraction, serializing all scheduled, manual, and backfill windows.
 
 ## 7. Logging
 
@@ -295,7 +295,7 @@ Non-secret block containing:
 
 ## 13. Proposed implementation organization
 
-All names and paths below are proposals for a later implementation phase. Part 1 creates no modules, Prefect package, or dependency.
+The flow and tasks are implemented in [`data/pipelines/pipeline.py`](../../data/pipelines/pipeline.py). Prefect is a `services/api` dependency. The paths below were the earlier proposal.
 
 | Proposed path | Role |
 | --- | --- |

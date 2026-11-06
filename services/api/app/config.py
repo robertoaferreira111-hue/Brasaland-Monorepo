@@ -10,7 +10,19 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 API_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _repo_root() -> Path:
+    configured = os.environ.get("BRASALAND_ROOT")
+    if configured:
+        return Path(configured)
+    here = Path(__file__).resolve()
+    if len(here.parents) > 3:
+        return here.parents[3]
+    return API_ROOT
+
+
+REPO_ROOT = _repo_root()
 
 
 def _load_env_files() -> None:
@@ -41,6 +53,7 @@ class Settings:
     email_from: str
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
+    database_url: str | None = None
     min_password_length: int = 8
 
     @property
@@ -68,6 +81,7 @@ def get_settings() -> Settings:
         email_from=os.getenv("EMAIL_FROM", "Brasaland <onboarding@resend.dev>"),
         supabase_url=os.getenv("SUPABASE_URL") or None,
         supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY") or None,
+        database_url=os.getenv("DATABASE_URL") or None,
     )
 
 

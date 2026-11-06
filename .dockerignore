@@ -1,0 +1,12 @@
+.git
+**/.venv
+**/node_modules
+**/__pycache__
+**/.next
+**/.pytest_cache
+.prefect-local
+data/eval
+uis
+**/*.png
+.env
+.env.*

@@ -4,9 +4,13 @@ version = "0.1.0"
 description = "Brasaland supplier directory API with staff JWT auth"
 requires-python = ">=3.12"
 dependencies = [
+    # cryptography 43+ has no Intel macOS wheel; 42.x still satisfies Prefect.
+    "cryptography>=36,<43",
     "fastapi>=0.115",
     "httpx>=0.28",
     "pandas>=2.2",
+    "prefect>=3",
+    "psycopg[binary]>=3",
     "pydantic>=2",
     "pyjwt>=2.9",
     "python-dotenv>=1.0",

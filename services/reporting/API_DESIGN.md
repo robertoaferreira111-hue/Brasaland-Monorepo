@@ -137,7 +137,7 @@ Also returned for operators: `pipeline_name`, `trigger_type`, `requested_week_st
 | HTTP method | `POST` |
 | Route | `/reporting/pipeline-runs` |
 | Auth | Staff Bearer access token (proposed) |
-| Pipeline function | `trigger_business_performance_run()` |
+| Pipeline function | `start_pipeline_run()` |
 | Success status | `202 Accepted` |
 | Body content type | `application/json` |
 
@@ -148,14 +148,14 @@ FastAPI validates the payload and requests the Prefect deployment/adapter. It do
 ```json
 {
   "week_start": "2026-07-13",
-  "trigger_type": "manual"
+  "trigger_type": "backfill"
 }
 ```
 
 | Field | Required | Validation |
 | --- | --- | --- |
-| `week_start` | No | ISO date for a Monday. When omitted, the most recently completed UTC ISO week is used. Must not identify a future or incomplete week. |
-| `trigger_type` | No | `manual` (default) or `backfill`. `schedule` is reserved for the Prefect deployment and rejected on this route. |
+| `week_start` | No | ISO date for a Monday. When omitted, the run is `manual` and uses the schedule window (the last two completed UTC weeks). Must not identify a future or incomplete week. |
+| `trigger_type` | No | Omitted week: `manual`. Explicit week: `backfill`. `schedule` is the no-argument command and is rejected on this route. A mismatched pair is `422`. |
 
 ### Trigger response
 
@@ -214,27 +214,24 @@ After a successful completed week, a later manual request for the same `week_sta
 
 | Parameter | Required | Role |
 | --- | --- | --- |
-| `week_start` | No | Inclusive lower ISO Monday of the requested date range. Defaults to the most recent successfully computed week when both range bounds are omitted. |
-| `week_end` | No | Inclusive upper ISO Monday. Defaults to `week_start` when only `week_start` is supplied. Must be a Monday and `>= week_start`. |
+| `week_start` | No | ISO Monday of the requested week. Defaults to the most recent successfully computed week when omitted. Must be a Monday and a completed week. |
 | `location_id` | No | Requested location dimension filter. Exact match. |
 | `country` | No | Requested country dimension filter. Allowed values: `CO`, `US`. |
 
-Date range is expressed in ISO week starts, matching the Phase 2 destination grain. The inclusive Monday range `[week_start, week_end]` selects every stored week in that window.
+The route accepts one week. `week_start` selects that Monday. When it is omitted, the route returns the latest published week.
 
 ### Requested dimensions and KPI values
 
-Each row returns Phase 2 dimensions and KPIs:
+Each location returns the eight briefing fields. `week_start` is the top-level week, not a field on each location. There is no `computed_at` in the JSON.
 
-- Dimensions: `location_id`, `country`, `week_start`, `currency`
-- KPIs: `total_purchase_cost`, `total_waste_cost`, `waste_ratio`, `stockout_events_count`, `price_alert_events_count`
-- Provenance: `computed_at`
+- `location_id`, `country`, `total_purchase_cost`, `total_waste_cost`, `waste_ratio`, `stockout_events_count`, `price_alert_events_count`, `currency`
 
-Amounts remain in local currency. COP and USD are never summed.
+Amounts remain in local currency. COP and USD are never summed. The list is locations observed in telemetry for that week. A location with no events is absent, and that absence is not a zero.
 
 ### Representative request
 
 ```http
-GET /reporting/weekly-location-performance?week_start=2026-07-06&week_end=2026-07-13&country=CO
+GET /reporting/weekly-location-performance?week_start=2026-07-13
 Authorization: Bearer <staff_access_token>
 ```
 
@@ -242,54 +239,32 @@ Authorization: Bearer <staff_access_token>
 
 ```json
 {
-  "week_start": "2026-07-06",
-  "week_end": "2026-07-13",
-  "filters": {
-    "location_id": null,
-    "country": "CO"
-  },
-  "data_status": "complete",
-  "coverage": "observed_locations_only",
-  "computed_at": "2026-07-20T06:01:17Z",
+  "week_start": "2026-07-13",
   "locations": [
     {
       "location_id": "medellin-centro",
       "country": "CO",
-      "week_start": "2026-07-06",
-      "total_purchase_cost": 7985000,
-      "total_waste_cost": 540000,
-      "waste_ratio": 0.0676,
-      "stockout_events_count": 1,
-      "price_alert_events_count": 0,
-      "currency": "COP",
-      "computed_at": "2026-07-13T06:00:51Z"
-    },
-    {
-      "location_id": "medellin-centro",
-      "country": "CO",
-      "week_start": "2026-07-13",
       "total_purchase_cost": 8420000,
       "total_waste_cost": 610000,
       "waste_ratio": 0.072,
       "stockout_events_count": 2,
       "price_alert_events_count": 1,
-      "currency": "COP",
-      "computed_at": "2026-07-20T06:01:17Z"
+      "currency": "COP"
     }
   ]
 }
 ```
 
-`locations` is sorted by `week_start`, then `country`, then `location_id`.
+`locations` is sorted by `country`, then `location_id`, within the requested week.
 
 ### Missing-data behavior
 
 | Situation | Behavior |
 | --- | --- |
-| Successful week(s) exist but filters match no rows | `200 OK` with `locations: []`, `data_status: "no_rows"`, `coverage: "observed_locations_only"`. |
+| No published rows for the requested week, including an empty table | `404 Not Found`, detail `No published week in the requested range`. |
 | Present row with zero KPI counts | Meaningful zero for an observed location/week, not absence. |
-| Absent location among the 14 | Not interpreted as zero. No authoritative location registry yet; `coverage` stays `observed_locations_only`. |
-| Requested week never completed successfully | `404 Not Found` when the entire requested range has no successful publication. |
+| Absent location among the 14 | Not interpreted as zero. There is no location registry; the response lists observed locations only. |
+| `week_start` is not a Monday, is not a date, or is not a completed week | `422 Unprocessable Entity`. A non-Monday uses detail `{name} must be a Monday`. |
 | Reporting storage unavailable | `503 Service Unavailable`, not an empty success payload. |
 
 ### Validation and error responses
@@ -298,7 +273,7 @@ Authorization: Bearer <staff_access_token>
 | --- | --- |
 | `401 Unauthorized` | Missing or invalid staff token. |
 | `404 Not Found` | No successfully published data for the requested week range. |
-| `422 Unprocessable Entity` | Non-Monday dates, `week_end < week_start`, incomplete/future week, or invalid `country`. |
+| `422 Unprocessable Entity` | Non-Monday `week_start`, incomplete/future week, or invalid `country`. |
 | `503 Service Unavailable` | Destination storage cannot be read. |
 
 ## 6. Proposed function mapping
@@ -306,8 +281,8 @@ Authorization: Bearer <staff_access_token>
 | Endpoint | Proposed pipeline function |
 | --- | --- |
 | `GET /reporting/pipeline-runs/latest` | `get_latest_pipeline_run()` |
-| `POST /reporting/pipeline-runs` | `trigger_business_performance_run(week_start, trigger_type)` |
-| `GET /reporting/weekly-location-performance` | `get_weekly_location_performance(week_start, week_end, location_id, country)` |
+| `POST /reporting/pipeline-runs` | `start_pipeline_run(week_start, trigger_type)` |
+| `GET /reporting/weekly-location-performance` | `get_weekly_location_performance(week_start, week_start, location_id, country)` |
 
 ETL logic stays in `data/pipelines/` and `data/process/`. `services/reporting/` performs HTTP validation and serialization only.
 

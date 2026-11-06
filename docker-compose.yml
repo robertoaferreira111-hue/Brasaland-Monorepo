@@ -3,7 +3,8 @@ name: brasaland
 services:
   api:
     build:
-      context: ./services/api
+      context: .
+      dockerfile: services/api/Dockerfile
       target: development
     command:
       - uvicorn
@@ -15,11 +16,17 @@ services:
       - --reload
     env_file:
       - .env
+    environment:
+      BRASALAND_ROOT: /opt/brasaland
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
       - ./services/api:/app
       - api-venv:/app/.venv
+      - ./services/reporting:/opt/brasaland/services/reporting
+      - ./services/telemetry:/opt/brasaland/services/telemetry
+      - ./data/pipelines:/opt/brasaland/data/pipelines
+      - ./data/process:/opt/brasaland/data/process
     networks:
       - brasaland-net
     restart: unless-stopped

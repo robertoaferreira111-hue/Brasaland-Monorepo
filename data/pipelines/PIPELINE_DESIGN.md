@@ -1,6 +1,6 @@
 # Brasaland Business Performance Pipeline Design
 
-Status: design only. This document proposes architecture; it does not create reporting tables, Prefect flows, or API routes.
+Status: implemented on `feature/resilient-pipeline`. The reporting migration, the Prefect flow, and the three `/reporting` routes exist. Section 13 records the deliberate differences from the decisions above.
 
 ## 1. Purpose and business question
 
@@ -15,12 +15,12 @@ The audience is Mariana Restrepo (CEO) and Felipe Guerrero (Operations Director)
 ### 2.1 Verified technical telemetry path
 
 - `services/api/app/telemetry.py` performs best-effort REST inserts into Supabase `telemetry_events`. The observed row contract is `id`, `timestamp`, `service`, `event_type`, `level`, `tags`, and optional `message` and `value`.
-- Runtime capture currently emits supplier and platform-reliability events. The repository has no inventory routes or emitters for the five business source events.
+- Runtime capture currently emits supplier and platform-reliability events. `POST /telemetry/events` accepts the five inventory event types. The repository still has no production inventory emitters; local verification uses the dev seed.
 - `docs/telemetry/event-schemas.json` is the approved design contract for inventory event envelopes and property allowlists. Inventory events use `eventId` and nested `properties` in that contract, while the implemented persistence adapter uses `id` and `tags`.
 - `services/telemetry/repository.py` reads Supabase through PostgREST with server-side half-open UTC timestamp filters (`timestamp >= start`, `timestamp < end`), optional event-type filtering, explicit columns, and ascending timestamp order.
 - `services/telemetry/analysis.py` calculates engineering-facing event volume, error rate by type, distribution by a tag dimension, and recorded authentication failure rate with Pandas.
 - `GET /telemetry/report` in `services/telemetry/router.py` accepts an optional ISO date range, defaults to seven days, caches each range for 60 seconds, returns the technical metrics, maps invalid ranges to `422`, repository failures to `503`, and analysis failures to `500`.
-- No SQL migration or checked-in database DDL establishes the live `telemetry_events` table. Its implemented access contract is therefore the REST usage and tests above, not an inferred schema.
+- `services/api/supabase/migrations/20261102180000_create_telemetry_events.sql` creates `public.telemetry_events`. The append-only proposal `PROPOSED_20261102190000_telemetry_events_append_only.sql` is not applied.
 
 ### 2.2 Existing capabilities that can be reused
 
@@ -181,7 +181,7 @@ reporting.weekly_location_performance (
 )
 ```
 
-The implementation migration will create the `reporting` schema and table in a later milestone. This milestone creates no database object.
+`services/api/supabase/migrations/20261105003000_create_reporting_schema.sql` creates `reporting.weekly_location_performance` and `reporting.pipeline_runs`. The weekly table columns match the definition above.
 
 All weekly partitions requested by one run are loaded in one database transaction with `INSERT ... ON CONFLICT (location_id, week_start) DO UPDATE`. The update replaces every computed KPI, country, currency, and `computed_at` from the complete recomputation. It does not add new totals to old totals. Within the same transaction, after upserting the recomputed set for each affected `week_start`, delete any existing row for that week whose `location_id` is absent from the recomputed set. Historical weeks are retained; a backfill updates only the requested weekly partitions.
 
@@ -276,17 +276,28 @@ The detailed orchestration contract is in [`../../docs/telemetry/PREFECT_DESIGN.
 - states: `Running`, `Completed`, and `Failed`, synchronized with `reporting.pipeline_runs`;
 - blocks: `SupabaseCredentials` and `BusinessPipelineConfig`.
 
-No Prefect dependency or executable flow is added in Part 1.
+The executable flow is `business_performance_etl_flow` in `data/pipelines/pipeline.py`. Prefect is a `services/api` dependency. A local command starts or reuses a Prefect API on `127.0.0.1:8765` with its files under the repository `.prefect-local/` directory, which is not the business database.
+
+From the repository root, with no arguments (recorded as `trigger_type` `schedule`):
+
+```bash
+python3 data/pipelines/pipeline.py
+uv run --project services/api python data/pipelines/pipeline.py
+```
+
+`python3` re-executes through `uv run --project services/api` when the current interpreter does not have `prefect` and `psycopg`, so `uv` must be on `PATH` for that re-exec. The command reads `DATABASE_URL` from the environment or from `.env` at the repository root. That URL is the local dev Postgres, not Supabase. The reporting tables must already exist in that database. The schedule is the single setting `BRASALAND_PIPELINE_SCHEDULE`, default `weekly-monday`, read in `pipeline.py` as `PIPELINE_SCHEDULE`. The Monday publication clock time is pending confirmation.
 
 ## 10. Application integration
 
-The proposed API contracts are under a future `services/reporting/` module. The service layer contains HTTP validation and serialization only and imports the following proposed functions from `data/pipelines/business_performance`:
+The API contracts live in `services/reporting/router.py`. That module contains HTTP validation and serialization only and imports these functions from `data/pipelines/pipeline.py`:
 
 | Endpoint | Pipeline function |
 | --- | --- |
 | `GET /reporting/pipeline-runs/latest` | `get_latest_pipeline_run()` |
-| `POST /reporting/pipeline-runs` | `trigger_business_performance_run(week_start, trigger_type)` |
-| `GET /reporting/weekly-location-performance` | `get_weekly_location_performance(week_start, week_end, location_id, country)` |
+| `POST /reporting/pipeline-runs` | `start_pipeline_run(week_start, trigger_type)` |
+| `GET /reporting/weekly-location-performance` | `get_weekly_location_performance(week_start, week_start, location_id, country)` |
+
+`POST` acquires the lease inside `start_pipeline_run` before it returns `run_id` with status `running`. `business_performance_etl_flow` then finishes on a background thread. A command-line run calls `execute_flow`, which waits for the same flow. A command with no arguments uses `trigger_type` `schedule`. An API call with no week uses `manual`. An API call with an explicit week uses `backfill`. `schedule` on `POST` is rejected.
 
 Full request, response, coexistence, concurrency, and error contracts are in [`../../services/reporting/API_DESIGN.md`](../../services/reporting/API_DESIGN.md). KPI field definitions remain in [`../../docs/telemetry/business_metrics.md`](../../docs/telemetry/business_metrics.md). ETL logic does not live in `services/`.
 
@@ -297,8 +308,8 @@ Full request, response, coexistence, concurrency, and error contracts are in [`.
 - `services/telemetry/analysis.py` and `GET /telemetry/report` remain technical reporting and are not imported or changed.
 - `services/reporting/` is a future reporting module mounted into the existing `services/api` FastAPI application, not a second deployable API or auth stack. Its routes reuse the current staff JWT/session dependencies.
 - `data/pipelines/` owns orchestration and pipeline-facing query functions.
-- `data/process/` will own pure reusable validation, normalization, and KPI calculations in the implementation milestone.
-- This design adds no migration, flow, task, dependency, or route.
+- `data/process/weekly_location_kpis.py` owns the pure functions `aggregate_weekly_location_kpis`, `line_cost`, `iso_monday`, and `require_tags_object`. It imports neither the database nor Prefect. `pipeline.py` imports those functions.
+- The reporting migration, the Prefect dependency, `business_performance_etl_flow`, and the three `/reporting` routes are implemented. They are not a second API or a second auth stack.
 
 ## 12. Implementation decisions still requiring evidence
 
@@ -308,6 +319,14 @@ Before Part 2 implementation:
 2. implement and validate inventory event capture, mapping approved `properties` to stored `tags` and stable producer `eventId` to `telemetry_events.id`;
 3. establish an authoritative registry for all 14 locations so missing capture can be distinguished from zero activity;
 4. confirm retention is long enough for the required backfill window;
-5. define the Monday publication SLA time; the briefing requires Monday morning but gives no exact hour; and
+5. define the Monday publication clock time; the briefing requires Monday morning but gives no exact hour. The implemented schedule name is `BRASALAND_PIPELINE_SCHEDULE` (default `weekly-monday`). The clock time remains pending confirmation; and
 6. choose monetary decimal precision in the implementation migration while retaining the briefing's `numeric` type; and
-7. package `services/reporting/` and `data/pipelines/` into the existing API deployment image, whose current build context includes only `services/api`, without creating a second service.
+7. package `services/reporting/`, `data/pipelines/`, and `data/process/` into the existing API image without a second service. The API build context is the repository root (`services/api/Dockerfile`). The image also copies `services/telemetry/` because the API process imports that router before the reporting router. Those trees are copied to `/opt/brasaland` and `BRASALAND_ROOT` points there. Compose mounts the same trees there for the development target because `./services/api:/app` hides files copied into `/app`.
+
+## 13. Deliberate deviations
+
+These are the implemented differences from the decisions above. Each line is the change and why it was made.
+
+- Database access uses `DATABASE_URL` through `data/pipelines/db.py` instead of Prefect blocks `SupabaseCredentials` and `BusinessPipelineConfig`, because the approved local run reads and writes the local dev Postgres and does not point at Supabase.
+- Each run computes its own bounded window, including the 14-day overlap for a schedule or omitted week, instead of reading the previous run's watermark. An outage longer than 14 days needs a manual backfill of the missed week.
+- `GET /reporting/weekly-location-performance` returns only `week_start` and `locations`, and each location has only the eight briefing fields, instead of the extra response fields in the earlier API design. The response lists locations observed in telemetry for that week; a location with no events is absent, and that absence is not a zero.

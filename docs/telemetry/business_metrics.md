@@ -1,6 +1,6 @@
 # Weekly Location Cost & Waste Metrics
 
-Status: business contract and API design only. No reporting table or endpoint is implemented in Part 1.
+Status: `reporting.weekly_location_performance` is created by [`services/api/supabase/migrations/20261105003000_create_reporting_schema.sql`](../../services/api/supabase/migrations/20261105003000_create_reporting_schema.sql), and `GET /reporting/weekly-location-performance` is implemented in [`services/reporting/router.py`](../../services/reporting/router.py).
 
 ## Business question
 
