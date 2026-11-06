@@ -293,19 +293,20 @@ Non-secret block containing:
 - Any active scheduled, manual, or backfill run with a live pipeline lease causes a new trigger to return `409`. Serialization begins before extraction, so overlapping windows cannot publish stale snapshots.
 - A bounded historical request uses the same main flow with `trigger_type = backfill`; Part 1 does not require a second flow.
 
-## 13. Proposed implementation organization
+## 13. Implementation organization
 
-The flow and tasks are implemented in [`data/pipelines/pipeline.py`](../../data/pipelines/pipeline.py). Prefect is a `services/api` dependency. The paths below were the earlier proposal.
+The flow and tasks are implemented in [`data/pipelines/pipeline.py`](../../data/pipelines/pipeline.py). Prefect is a `services/api` dependency. Paths from the earlier proposal that were not created are marked below and are not used.
 
-| Proposed path | Role |
-| --- | --- |
-| `services/reporting/` | HTTP adapters, request/response models, and mount into the existing FastAPI app. Reserved empty boundary already exists. |
-| `services/reporting/router.py` | Proposed routes: pipeline status, manual trigger, and KPI query. |
-| `services/reporting/schemas.py` | Proposed Pydantic request and response models. |
-| `services/reporting/deps.py` | Proposed reuse of existing staff JWT/session dependencies from `services/api`. |
-| `data/pipelines/business_performance/flow.py` | Proposed Prefect flow and task definitions. |
-| `data/pipelines/business_performance/repository.py` | Proposed source, destination, and run-log access. |
-| `data/process/business_performance.py` | Proposed pure validation and KPI calculation. |
+| Path | Status | Names in the repository |
+| --- | --- | --- |
+| `services/reporting/` | In use | Directory holds `router.py`. `services/api/app/main.py` mounts that router. |
+| `services/reporting/router.py` | In use | `GET /reporting/pipeline-runs/latest` is `latest_pipeline_run`, which calls `get_latest_pipeline_run`. `POST /reporting/pipeline-runs` is `trigger_pipeline_run`, which calls `start_pipeline_run`. `GET /reporting/weekly-location-performance` is `weekly_location_performance`, which calls `get_weekly_location_performance`. |
+| `services/reporting/schemas.py` | No longer applies; file was not created | `TriggerBody` and `LocationPerformance` are classes in `services/reporting/router.py`. |
+| `services/reporting/deps.py` | No longer applies; file was not created | The three routes use `current_user_email` from `services/api/app/deps.py`. |
+| `data/pipelines/business_performance/flow.py` | No longer applies; file was not created | `business_performance_etl_flow` and tasks `extract_telemetry_events`, `transform_weekly_location_performance`, `load_weekly_location_performance`, and `write_eval_snapshot` are in `data/pipelines/pipeline.py`. A command-line run calls `execute_flow`. |
+| `data/pipelines/business_performance/repository.py` | No longer applies; file was not created | `data/pipelines/db.py` exposes `connect`. Run and weekly reads are `get_latest_pipeline_run` and `get_weekly_location_performance` in `data/pipelines/pipeline.py`. |
+| `data/process/business_performance.py` | No longer applies; file was not created | `data/process/weekly_location_kpis.py` defines `aggregate_weekly_location_kpis`, `line_cost`, `iso_monday`, and `require_tags_object`. |
+| `services/api/supabase/migrations/20261105003000_create_reporting_schema.sql` | In use | Creates `reporting.weekly_location_performance` and `reporting.pipeline_runs`. |
 
 Dependency direction:
 
@@ -313,7 +314,7 @@ Dependency direction:
 - Pipeline modules do not import the HTTP service.
 - Existing `services/telemetry/` remains independent and is not reused for business KPI calculation.
 
-`services/reporting/` is a module mounted by the existing `services/api` FastAPI application and reuses its staff authentication dependencies; it is not a second deployable API. Part 2 must update packaging so the existing API image includes the reporting and pipeline modules, because its current Docker build context includes only `services/api`.
+`services/reporting/` is a module mounted by the existing `services/api` FastAPI application and reuses its staff authentication dependencies; it is not a second deployable API. The API image build context is the repository root (`services/api/Dockerfile`). It copies `services/reporting/`, `data/pipelines/`, and `data/process/` to `/opt/brasaland`. The earlier limit, a build context of only `services/api`, no longer applies.
 
 ## 14. Phase 4 acceptance summary
 
