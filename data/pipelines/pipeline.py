@@ -586,7 +586,7 @@ def _write_snapshot_file(run_id: str, payload: dict[str, Any]) -> str:
 
 
 @task
-def write_eval_snapshot(
+def _write_eval_snapshot(
     run_id: str,
     rows_extracted: int,
     rows_transformed: int,
@@ -612,6 +612,61 @@ def _fail(run: dict[str, Any], stage: str, exc: BaseException) -> None:
         _finish(run, "failed", stage, str(exc)[:500])
 
 
+@flow(name="extract-telemetry-events")
+def extract_telemetry_events_subflow(
+    run_id: str,
+    watermark_from: datetime,
+    watermark_to: datetime,
+    batch_size: int = 500,
+) -> list[dict[str, Any]]:
+    """Read one watermark window from telemetry_events."""
+    return extract_telemetry_events(run_id, watermark_from, watermark_to, batch_size)
+
+
+@flow(name="transform-weekly-location-kpis")
+def transform_weekly_location_kpis_subflow(
+    run_id: str,
+    events: list[dict[str, Any]],
+    watermark_from: datetime,
+    watermark_to: datetime,
+) -> dict[str, Any]:
+    """Aggregate Purchase Cost, Waste Cost, Waste Ratio, Stockout Frequency, and Price Alert Frequency."""
+    return transform_weekly_location_performance(
+        run_id,
+        events,
+        watermark_from,
+        watermark_to,
+    )
+
+
+@flow(name="load-weekly-location-performance")
+def load_weekly_location_performance_subflow(
+    run_id: str,
+    transformed: dict[str, Any],
+    affected_weeks: list[date],
+) -> int:
+    """Upsert reporting.weekly_location_performance for the affected weeks."""
+    return load_weekly_location_performance(run_id, transformed, affected_weeks)
+
+
+@flow(name="write-eval-snapshot")
+def write_eval_snapshot(
+    run_id: str,
+    rows_extracted: int,
+    rows_transformed: int,
+    rows_rejected: int,
+    rejections: list[dict[str, str]],
+) -> str:
+    """Optional audit snapshot. A failure here must not fail the weekly report."""
+    return _write_eval_snapshot(
+        run_id,
+        rows_extracted,
+        rows_transformed,
+        rows_rejected,
+        rejections,
+    )
+
+
 @flow(name="business_performance_etl_flow")
 def business_performance_etl_flow(
     week_start: date | None = None,
@@ -633,7 +688,7 @@ def business_performance_etl_flow(
     beater.start()
     try:
         try:
-            events = extract_telemetry_events(
+            events = extract_telemetry_events_subflow(
                 run["run_id"],
                 run["watermark_from"],
                 run["watermark_to"],
@@ -644,7 +699,7 @@ def business_performance_etl_flow(
         run["rows_extracted"] = len(events)
         run["records_processed"] = len(events)
         try:
-            transformed = transform_weekly_location_performance(
+            transformed = transform_weekly_location_kpis_subflow(
                 run["run_id"],
                 events,
                 run["watermark_from"],
@@ -669,7 +724,7 @@ def business_performance_etl_flow(
             logger.warning(note)
             run["optional_failure"] = note
         try:
-            loaded = load_weekly_location_performance(
+            loaded = load_weekly_location_performance_subflow(
                 run["run_id"],
                 transformed,
                 run["affected_weeks"],
