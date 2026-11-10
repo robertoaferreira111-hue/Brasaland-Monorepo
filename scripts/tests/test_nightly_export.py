@@ -44,20 +44,22 @@ def clean_day(database_url: str):
     def use(day: date) -> date:
         created.append(day)
         _delete_job(day)
-        path = nightly_export.export_path(day)
-        if path.exists():
-            path.unlink()
-        temporary = path.with_suffix(".csv.tmp")
-        if temporary.exists():
-            temporary.unlink()
+        _remove_export(day)
         return day
 
     yield use
     for day in created:
         _delete_job(day)
-        path = nightly_export.export_path(day)
-        if path.exists():
-            path.unlink()
+        _remove_export(day)
+
+
+def _remove_export(day: date) -> None:
+    path = nightly_export.export_path(day)
+    temporary = path.with_suffix(".csv.tmp")
+    if path.exists():
+        path.unlink()
+    if temporary.exists():
+        temporary.unlink()
 
 
 def _delete_job(day: date) -> None:
@@ -223,6 +225,62 @@ def test_success_exports_and_completes(
     assert rows[1][0] == event_id
     assert rows[1][1].endswith("Z")
     assert rows[1][7].startswith("{")
+
+
+def test_failed_csv_write_leaves_no_final_file(
+    monkeypatch: pytest.MonkeyPatch,
+    clean_day,
+) -> None:
+    day = clean_day(_DAY + timedelta(days=12))
+    monkeypatch.setenv("TARGET_DATE", day.isoformat())
+    event_id = str(uuid4())
+    _insert_event(event_id, day)
+    monkeypatch.setattr(nightly_export, "run_pipeline", lambda url: None)
+    wrote = {"chunks": 0}
+    real_open = Path.open
+
+    class RaisingHandle:
+        def __init__(self, handle):
+            self._handle = handle
+
+        def write(self, data: str) -> int:
+            self._handle.write(data)
+            wrote["chunks"] += 1
+            raise RuntimeError("csv write interrupted")
+
+        def __enter__(self):
+            self._handle.__enter__()
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return self._handle.__exit__(exc_type, exc, tb)
+
+    def opening(self, *args, **kwargs):
+        handle = real_open(self, *args, **kwargs)
+        if self.name.endswith(".csv.tmp"):
+            return RaisingHandle(handle)
+        return handle
+
+    monkeypatch.setattr(Path, "open", opening)
+    path = nightly_export.export_path(day)
+    temporary = path.with_suffix(".csv.tmp")
+    try:
+        assert nightly_export.main() == 1
+        assert wrote["chunks"] >= 1
+        assert not path.exists()
+        assert not temporary.exists()
+        assert _status(day) == "failed"
+        monkeypatch.setattr(Path, "open", real_open)
+        assert nightly_export.main() == 0
+        assert path.exists()
+        assert not temporary.exists()
+        with path.open(encoding="utf-8", newline="") as handle:
+            rows = list(csv.reader(handle))
+        assert rows[0] == list(nightly_export._COLUMNS)
+        assert rows[1][0] == event_id
+        assert len(rows) == 2
+    finally:
+        _delete_event(event_id)
 
 
 def test_existing_csv_is_not_rewritten(
