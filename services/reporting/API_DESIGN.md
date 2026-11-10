@@ -25,7 +25,7 @@ Proposed module layout (names only; not created in Part 1):
 | --- | --- | --- | --- |
 | Technical telemetry report | `GET /telemetry/report` | `services/telemetry/` | Engineering metrics over raw `telemetry_events` (events/day, error rates, dimensions, auth failures). Unauthenticated today. Cached 60s. |
 | Business pipeline status | `GET /reporting/pipeline-runs/latest` | `services/reporting/` | Operational status of the Weekly Location Cost & Waste pipeline. |
-| Business pipeline trigger | `POST /reporting/pipeline-runs` | `services/reporting/` | Manual/backfill trigger into Prefect orchestration. |
+| Business pipeline trigger | `POST /reporting/pipeline-runs` | `services/reporting/` | Manual/backfill trigger. Returns `202` with `task_id` only. |
 | Business KPI query | `GET /reporting/weekly-location-performance` | `services/reporting/` | Location/week Purchase Cost, Waste Cost, Waste Ratio, Stockout Frequency, and Price Alert Frequency. |
 
 Rules:
@@ -137,11 +137,11 @@ Also returned for operators: `pipeline_name`, `trigger_type`, `requested_week_st
 | HTTP method | `POST` |
 | Route | `/reporting/pipeline-runs` |
 | Auth | Staff Bearer access token (proposed) |
-| Pipeline function | `start_pipeline_run()` |
+| Pipeline function | Read-only `live_lease_run_id()`, then enqueue `run_weekly_pipeline` |
 | Success status | `202 Accepted` |
 | Body content type | `application/json` |
 
-FastAPI validates the payload and requests the Prefect deployment/adapter. It does not execute extract/transform/load inline.
+FastAPI validates the payload, refuses a live lease, and enqueues `run_weekly_pipeline` with `week_start` and `trigger_type` only. It does not execute extract/transform/load, and it does not start Prefect.
 
 ### Request payload
 
@@ -161,16 +161,11 @@ FastAPI validates the payload and requests the Prefect deployment/adapter. It do
 
 ```json
 {
-  "run_id": "8bb7302d-cbe7-49fc-ae56-3dddb12739a4",
-  "pipeline_name": "weekly_location_cost_waste",
-  "week_start": "2026-07-13",
-  "status": "running",
-  "trigger_type": "manual",
-  "accepted_at": "2026-07-20T13:15:00Z"
+  "task_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 }
 ```
 
-Clients use the returned `run_id` for correlation. Part 1 documents `GET /reporting/pipeline-runs/latest` as the status contract. A later `GET /reporting/pipeline-runs/{run_id}` is recommended for Part 2 so a client can observe a specific accepted run without racing a newer schedule or manual trigger. Until that route exists, `/latest` is authoritative only while it still reports the same `run_id`.
+The 202 body does not include `run_id`. The worker creates that id when the task runs. Clients read it from `GET /tasks/{task_id}` once `status` is `success` (`result.run_id`), and from `GET /reporting/pipeline-runs/latest` for the newest stored run.
 
 ### Duplicate-trigger protection
 
@@ -195,7 +190,7 @@ After a successful completed week, a later manual request for the same `week_sta
 | `401 Unauthorized` | Missing or invalid staff token. |
 | `409 Conflict` | Live lease held by another run; body includes `active_run_id`. |
 | `422 Unprocessable Entity` | Invalid JSON, non-Monday `week_start`, future week, incomplete week, or disallowed `trigger_type`. |
-| `503 Service Unavailable` | Orchestration adapter or control storage unavailable. |
+| `503 Service Unavailable` | Control storage is unavailable, or Redis cannot accept the task (`detail` is `Queue unavailable`). |
 
 ## 5. Endpoint 3 — Business KPI query
 
@@ -281,7 +276,7 @@ Authorization: Bearer <staff_access_token>
 | Endpoint | Proposed pipeline function |
 | --- | --- |
 | `GET /reporting/pipeline-runs/latest` | `get_latest_pipeline_run()` |
-| `POST /reporting/pipeline-runs` | `start_pipeline_run(week_start, trigger_type)` |
+| `POST /reporting/pipeline-runs` | `live_lease_run_id()`, then enqueue `run_weekly_pipeline(week_start, trigger_type)` |
 | `GET /reporting/weekly-location-performance` | `get_weekly_location_performance(week_start, week_start, location_id, country)` |
 
 ETL logic stays in `data/pipelines/` and `data/process/`. `services/reporting/` performs HTTP validation and serialization only.
