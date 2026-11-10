@@ -1,0 +1,11 @@
+# 02:00 UTC every day.
+# CRON_TZ=UTC makes that clock UTC on cron implementations that honor it,
+# including the cron used on this Mac. If a host ignores CRON_TZ, replace the
+# hour with that host's local equivalent of 02:00 UTC. America/New_York in
+# standard time is 21:00 the previous evening, so the line would be
+# 0 21 * * *. The script still chooses the target date in UTC.
+#
+# DATABASE_URL and PATH are not stored here. Copy scripts/nightly_export.env.example
+# to the path below and fill in the real values outside the repository.
+CRON_TZ=UTC
+0 2 * * * cd "/Users/robertoferreira/Desktop/CURSOR PROJECTS-4GEEKS/MONOREPO COMPLETE/Monorepo_Background Processes/Brasaland-Monorepo-1" && set -a && . "$HOME/.config/brasaland/nightly_export.env" && set +a && /usr/bin/python3 scripts/nightly_export.py >> "$HOME/Library/Logs/brasaland-nightly_export.log" 2>&1

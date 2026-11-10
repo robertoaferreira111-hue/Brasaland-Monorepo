@@ -131,3 +131,23 @@ uv run python ../../data/dev/seed_inventory_events.py late
 ```
 
 The first command inserts the main synthetic batch. The second inserts one purchase dated inside the week of 2026-10-12. Both validate each event with the runtime schema, store `eventId` as `id`, and insert with `on conflict (id) do nothing`. Running either command again does not add rows. Invalid samples live in `data/dev/inventory_seed.py` as `invalid_fixtures()` and are not passed to either command.
+
+## Nightly job runs
+
+Apply `migrations/20261109210000_create_job_runs.sql` only to a database confirmed as non-production. It creates `public.job_runs`. It does not change `public.telemetry_events` or `reporting.pipeline_runs`.
+
+The file is idempotent: `create table if not exists` and `create index if not exists`. `id` is a UUID primary key, matching the other checked-in tables. `status` is constrained to `pending`, `processing`, `completed`, or `failed`. Indexes are `(job_name, status)` and `(job_name, target_date)`.
+
+With `DATABASE_URL` set:
+
+```bash
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f services/api/supabase/migrations/20261109210000_create_job_runs.sql
+```
+
+`services/job_runner` is the only code that reads and writes this table. It opens `DATABASE_URL` with psycopg and does not import the FastAPI app.
+
+Apply `migrations/20261110021500_job_runs_one_processing.sql` to the same database after the table exists. It adds a partial unique index on `(job_name)` where `status = 'processing'`. That index is the only lock: a second processing claim for the same job is rejected, and a `completed` or `failed` row releases it. The file does not change `reporting.pipeline_runs`.
+
+```bash
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f services/api/supabase/migrations/20261110021500_job_runs_one_processing.sql
+```
