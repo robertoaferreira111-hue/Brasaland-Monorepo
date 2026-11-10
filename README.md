@@ -292,6 +292,91 @@ ai-engineering-company-project-monorepo/
 
 ---
 
+## Async task queue
+
+The weekly pipeline trigger does not run the ETL inside the API process. `POST /reporting/pipeline-runs` checks for a live lease, publishes `app.tasks.run_weekly_pipeline` to Redis, and returns `202` with `{"task_id": "..."}`. A separate Celery worker, started from `services/api`, runs `execute_flow`. Redis is the broker and the result backend. Flower reads the same broker for the monitor at [http://127.0.0.1:5555](http://127.0.0.1:5555).
+
+Stopping the API does not stop the worker and does not remove messages already in Redis. A task queued while the worker is down stays in the queue and runs after the worker starts.
+
+### Environment
+
+Copy the example file to the gitignored root `.env` (`cp .env.example .env`). Do not commit that file.
+
+| Variable | Role |
+| --- | --- |
+| `REDIS_URL` | Broker and result backend. Host API and worker: `redis://localhost:6379/0`. Processes inside Compose use `redis://redis:6379/0`. DB index 0 is the queue. |
+| `DATABASE_URL` | Postgres used by the pipeline and by `public.dlq_tasks`. Set it in the root `.env`. The example file shows the shape; keep the real value local. |
+
+The API and the worker load the root `.env` themselves. A staff Bearer token is required on the reporting and task routes. `uv run seed` from `services/api` creates the local demo account when it is missing.
+
+### Start and stop
+
+Redis and Flower, from the repository root:
+
+```bash
+docker compose up -d redis flower
+docker compose stop redis flower
+```
+
+Postgres for this repo is the existing container `brasaland-dev-postgres` (database `brasaland`). It is not one of the Compose services above.
+
+API, from `services/api`:
+
+```bash
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Worker, from `services/api`, in its own terminal:
+
+```bash
+uv run celery -A app.celery_app worker --loglevel=info
+```
+
+Stop each process with Ctrl-C in the terminal that started it.
+
+### HTTP contract
+
+`POST /reporting/pipeline-runs` with a staff token:
+
+- `202` `{"task_id": "..."}` when the task is queued. The body has no `run_id`.
+- `409` when a run already holds a live lease. `detail.active_run_id` is that run. `detail.code` is `pipeline_run_in_progress`.
+- `503` `{"detail": "Queue unavailable"}` when Redis cannot accept the publish.
+- `401` `{"detail": "Not authenticated"}` when the token is missing or invalid.
+
+`GET /tasks/{task_id}` uses the same staff token and returns `task_id`, `status`, and `result`. `status` is `pending`, `started`, `success`, or `failure`. Celery `RETRY` is `started`. Celery `REVOKED` is `failure`. An id Celery does not know is `pending` with `result` null.
+
+```json
+{"task_id": "2f25c7da-7957-4136-9324-33a878482d45", "status": "pending", "result": null}
+```
+
+```json
+{"task_id": "2f25c7da-7957-4136-9324-33a878482d45", "status": "started", "result": null}
+```
+
+```json
+{"task_id": "2f25c7da-7957-4136-9324-33a878482d45", "status": "success", "result": {"run_id": "ebc723cd-64b5-4909-aade-d108b573d086", "status": "success"}}
+```
+
+```json
+{"task_id": "026ccb89-a416-4771-83ac-c4f40f767b09", "status": "failure", "result": "BRASALAND_PIPELINE_TASK_FAIL_FOR_TEST is set"}
+```
+
+`run_id` is created by the worker. After success it is in `result.run_id` and in `GET /reporting/pipeline-runs/latest`.
+
+### Dead letter and the test switch
+
+The worker retries a failed task three times, waiting 10s, then 20s, then 40s. The exhausted task is one row in `public.dlq_tasks`. Host `psql` is not required:
+
+```bash
+docker exec brasaland-dev-postgres psql -U postgres -d brasaland -c "select task_id, task_name, attempt, error_message, created_at from public.dlq_tasks order by created_at desc;"
+```
+
+`BRASALAND_PIPELINE_TASK_FAIL_FOR_TEST` forces the task to fail before the ETL. It is off unless that variable is set in the worker process environment (`1`, `true`, `yes`, or `on`). Do not put it in a committed file or in `.env`.
+
+If the worker is hard-killed, a `reporting.pipeline_runs` row can stay `running` until its 15-minute lease expires. A retry in that window raises `PipelineLeaseHeld` and the task ends in the dead-letter table.
+
+---
+
 ## Links
 
 - [4Geeks Academy — AI Engineering](https://4geeksacademy.com/es/programas-de-carrera/ingenieria-ia)
