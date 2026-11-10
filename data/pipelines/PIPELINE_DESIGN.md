@@ -276,7 +276,7 @@ The detailed orchestration contract is in [`../../docs/telemetry/PREFECT_DESIGN.
 - states: `Running`, `Completed`, and `Failed`, synchronized with `reporting.pipeline_runs`;
 - blocks: `SupabaseCredentials` and `BusinessPipelineConfig`.
 
-The executable flow is `business_performance_etl_flow` in `data/pipelines/pipeline.py`. Prefect is a `services/api` dependency. A local command starts or reuses a Prefect API on `127.0.0.1:8765` with its files under the repository `.prefect-local/` directory, which is not the business database.
+The executable flow is `business_performance_etl_flow` in `data/pipelines/pipeline.py`. That flow only coordinates. It calls `extract_telemetry_events_subflow`, `transform_weekly_location_kpis_subflow`, and `load_weekly_location_performance_subflow`, and it calls the optional `write_eval_snapshot` subflow with `return_state=True`. Each subflow takes its inputs as parameters and returns its output. The tasks named above still run inside those subflows, with the same retries and transform cache. Prefect is a `services/api` dependency. A local command starts or reuses a Prefect API on `127.0.0.1:8765` with its files under the repository `.prefect-local/` directory, which is not the business database.
 
 From the repository root, with no arguments (recorded as `trigger_type` `schedule`):
 

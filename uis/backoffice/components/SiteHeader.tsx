@@ -7,7 +7,7 @@ import ApiLink from "./ApiLink";
 export default function SiteHeader({
   current,
 }: {
-  current?: "directory" | "account" | "password" | "telemetry";
+  current?: "directory" | "account" | "password" | "telemetry" | "reporting";
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -20,6 +20,7 @@ export default function SiteHeader({
       </div>
       <nav id="site-nav" className={`site-nav ${open ? "is-open" : ""}`} aria-label="Primary">
         <ApiLink href="/" aria-current={current === "directory" ? "page" : undefined}>Supplier directory</ApiLink>
+        <ApiLink href="/reporting" aria-current={current === "reporting" ? "page" : undefined}>Weekly report</ApiLink>
         <ApiLink href="/telemetry" aria-current={current === "telemetry" ? "page" : undefined}>Telemetry</ApiLink>
         <ApiLink href="/account/profile" aria-current={current === "account" ? "page" : undefined}>Account</ApiLink>
         {current === "password" && <ApiLink href="/account/change-password" aria-current="page">Change password</ApiLink>}
