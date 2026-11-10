@@ -6,14 +6,14 @@ TARGET_DATE=YYYY-MM-DD selects a day. When it is unset, the day is yesterday
 in UTC.
 
 DATABASE_URL must be in the process environment, or in the first file that
-exists among ``.env/local``, ``.env``, and ``services/api/.env``. Cron has no
-repo ``.env`` on this machine, so the crontab must export DATABASE_URL.
-The system interpreter does not have psycopg. When this file is the program,
-it re-executes through ``uv run --project services/api`` before importing
-``job_runner``. Cron's PATH must include ``uv``. The same interpreter then
-runs ``data/pipelines/pipeline.py``, and that child inherits DATABASE_URL.
+exists among ``.env/local``, ``.env``, and ``services/api/.env``. The committed
+schedule is ``scripts/nightly_export.crontab``. It loads DATABASE_URL and PATH
+from an env file outside this repository. See ``scripts/nightly_export.env.example``.
 
-    0 2 * * * cd /path/to/monorepo && DATABASE_URL='postgresql://USER:PASSWORD@127.0.0.1:5432/brasaland' /usr/bin/python3 scripts/nightly_export.py >> /var/log/nightly_export.log 2>&1
+The system interpreter does not have psycopg. When this file is the program,
+it asks ``uv`` for the services/api interpreter and replaces itself with that
+program, so SIGINT and SIGTERM reach this process. Cron's PATH must include
+``uv``. The pipeline child inherits DATABASE_URL.
 
 The CSV under ``data/raw/`` is a backup. The pipeline subprocess reads
 ``telemetry_events`` from Postgres.
@@ -26,6 +26,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 from datetime import date, datetime, timedelta, timezone
@@ -36,8 +37,24 @@ from typing import Any
 _REPO = Path(__file__).resolve().parents[1]
 
 
+class RunInterrupted(Exception):
+    """SIGINT or SIGTERM arrived while the run was in progress."""
+
+    def __init__(self, signum: int) -> None:
+        self.signum = signum
+        super().__init__(signal.Signals(signum).name)
+
+
+def _on_signal(signum: int, _frame: object) -> None:
+    raise RunInterrupted(signum)
+
+
 def _ensure_interpreter() -> None:
-    """Re-exec under services/api when this interpreter cannot import psycopg."""
+    """Replace this process with the API interpreter when psycopg is missing.
+
+    ``uv run`` would stay as the parent. Replacing this process with the
+    interpreter ``uv`` selects keeps SIGINT and SIGTERM on the script.
+    """
     if os.environ.get("BRASALAND_NIGHTLY_REEXEC") == "1":
         return
     try:
@@ -51,22 +68,29 @@ def _ensure_interpreter() -> None:
                 "run with the services/api environment."
             )
         os.environ["BRASALAND_NIGHTLY_REEXEC"] = "1"
-        os.execv(
-            uv,
+        interpreter = subprocess.check_output(
             [
                 uv,
                 "run",
                 "--project",
                 str(_REPO / "services" / "api"),
                 "python",
-                str(Path(__file__).resolve()),
-                *sys.argv[1:],
+                "-c",
+                "import sys; print(sys.executable)",
             ],
-        )
+            text=True,
+        ).strip()
+        os.execv(interpreter, [interpreter, str(Path(__file__).resolve()), *sys.argv[1:]])
+
+
+def _install_signal_handlers() -> None:
+    signal.signal(signal.SIGINT, _on_signal)
+    signal.signal(signal.SIGTERM, _on_signal)
 
 
 if __name__ == "__main__":
     _ensure_interpreter()
+    _install_signal_handlers()
 sys.path.insert(0, str(_REPO / "services"))
 
 from job_runner import (  # noqa: E402
@@ -177,18 +201,29 @@ def run_pipeline(url: str) -> None:
     """Run the weekly pipeline. A non-zero exit is a failure.
 
     The child's output stays out of the nightly log. The pipeline reads
-    ``telemetry_events`` from Postgres, not the CSV.
+    ``telemetry_events`` from Postgres, not the CSV. A signal stops the child
+    so its lease does not stay running after this process records failure.
     """
-    completed = subprocess.run(
+    process = subprocess.Popen(
         [sys.executable, "data/pipelines/pipeline.py"],
         cwd=_REPO,
         env={**os.environ, "DATABASE_URL": url},
-        check=False,
-        capture_output=True,
-        text=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
     )
-    if completed.returncode != 0:
-        raise RuntimeError(f"pipeline exit code {completed.returncode}")
+    try:
+        return_code = process.wait()
+    except BaseException:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+        raise
+    if return_code != 0:
+        raise RuntimeError(f"pipeline exit code {return_code}")
 
 
 def main() -> int:
