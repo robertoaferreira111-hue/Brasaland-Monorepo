@@ -11,7 +11,13 @@ Esta carpeta contiene **scripts auxiliares** del monorepo: automatizaciones de d
 
 Cron lleva el reloj. Un planificador dentro del proceso de la API se detendría con la API y ataría la exportación a un worker de peticiones. El crontab arranca el script a las 02:00 UTC aunque la API no esté en marcha. `CRON_TZ=UTC` mantiene esa hora en UTC en las implementaciones de cron que lo respetan. Si el anfitrión ignora `CRON_TZ`, convierte las 02:00 UTC a la hora local de ese anfitrión. La fecha del script no usa la zona del anfitrión: sin `TARGET_DATE`, el día es ayer en UTC.
 
-El crontab no guarda credenciales. Copia [`nightly_export.env.example`](./nightly_export.env.example) a `$HOME/.config/brasaland/nightly_export.env` y define allí `DATABASE_URL` y un `PATH` que incluya `uv`. El crontab carga ese archivo con `set -a` y `.`. La salida se añade a `$HOME/Library/Logs/brasaland-nightly_export.log`.
+El crontab no guarda credenciales. Copia [`nightly_export.env.example`](./nightly_export.env.example) a `$HOME/.config/brasaland/nightly_export.env` y define allí `DATABASE_URL` y un `PATH` que incluya `uv`. El crontab carga ese archivo con `set -a` y `.`. La salida se añade a `$HOME/Library/Logs/brasaland-nightly_export.log`. Esa ruta es de macOS. En un anfitrión Linux, apunta la redirección a un directorio de ese anfitrión, por ejemplo `/var/log/brasaland-nightly_export.log`.
+
+`CRON_TZ` solo lo respetan algunas implementaciones de cron. Si el anfitrión lo ignora, sustituye `0 2 * * *` por el equivalente local de las 02:00 UTC. America/New_York en horario estándar usa `0 21 * * *` la noche anterior.
+
+El día de la exportación y la ventana del pipeline son distintos. `TARGET_DATE` elige el día UTC que se escribe en el CSV. `data/pipelines/pipeline.py` sigue procesando las dos últimas semanas UTC completas, sea cual sea `TARGET_DATE`.
+
+Los archivos SQL de `services/api/supabase/migrations/` se aplican a mano. Este script no los aplica.
 
 Instalar la línea en el crontab real es opcional. El comando del archivo es el que hay que ejecutar.
 

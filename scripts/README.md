@@ -11,7 +11,13 @@ This folder contains **helper scripts** for the monorepo: development automation
 
 Cron owns the clock. A scheduler inside the API process would stop when the API stops, and it would tie the export to a request worker. The crontab starts the script at 02:00 UTC whether or not the API is running. `CRON_TZ=UTC` keeps that hour on UTC for cron implementations that honor it. If a host ignores `CRON_TZ`, convert 02:00 UTC to that host's local hour. The script's target date does not use the host zone: an empty `TARGET_DATE` is yesterday in UTC.
 
-The crontab does not contain credentials. Copy [`nightly_export.env.example`](./nightly_export.env.example) to `$HOME/.config/brasaland/nightly_export.env` and set `DATABASE_URL` and a `PATH` that includes `uv` there. The crontab loads that file with `set -a` and `.`. Output is appended to `$HOME/Library/Logs/brasaland-nightly_export.log`.
+The crontab does not contain credentials. Copy [`nightly_export.env.example`](./nightly_export.env.example) to `$HOME/.config/brasaland/nightly_export.env` and set `DATABASE_URL` and a `PATH` that includes `uv` there. The crontab loads that file with `set -a` and `.`. Output is appended to `$HOME/Library/Logs/brasaland-nightly_export.log`. That path is a macOS location. On a Linux host, point the redirect at a directory that host provides, such as `/var/log/brasaland-nightly_export.log`.
+
+`CRON_TZ` is honored only by some cron implementations. Where the host ignores it, replace `0 2 * * *` with that host's local equivalent of 02:00 UTC. America/New_York in standard time uses `0 21 * * *` the previous evening.
+
+The export day and the pipeline window are different. `TARGET_DATE` selects the UTC day written to the CSV. `data/pipelines/pipeline.py` still processes the last two completed UTC weeks, whatever `TARGET_DATE` is.
+
+The SQL files in `services/api/supabase/migrations/` are applied by hand. This script does not apply them.
 
 Installing the line into the live crontab is optional. The command in the file is the one to run.
 
