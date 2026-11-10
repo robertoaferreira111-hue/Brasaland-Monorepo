@@ -5,7 +5,10 @@ job_runner.py.
 """
 
 from job_runner.job_runner import (
+    ProcessingLockHeld,
+    claim_run,
     create_run,
+    fail_if_processing,
     has_completed_for_date,
     has_processing_lock,
     mark_completed,
@@ -14,7 +17,10 @@ from job_runner.job_runner import (
 )
 
 __all__ = [
+    "ProcessingLockHeld",
+    "claim_run",
     "create_run",
+    "fail_if_processing",
     "has_completed_for_date",
     "has_processing_lock",
     "mark_completed",

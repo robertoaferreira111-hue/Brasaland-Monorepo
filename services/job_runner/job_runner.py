@@ -31,6 +31,14 @@ def _load_database_url() -> str | None:
     return raw
 
 
+class ProcessingLockHeld(Exception):
+    """The database rejected a second processing row for this job."""
+
+    def __init__(self, job_name: str) -> None:
+        super().__init__(job_name)
+        self.job_name = job_name
+
+
 def connect() -> Any:
     """Open one connection. The caller commits and closes it."""
     url = _load_database_url()
@@ -77,14 +85,92 @@ def create_run(job_name: str, target_date: date) -> str:
 
 def mark_processing(run_id: str) -> None:
     """Move the row to processing and set started_at."""
-    _update(
-        run_id,
-        """
-        update public.job_runs
-        set status = 'processing', started_at = now()
-        where id = %(run_id)s
-        """,
-    )
+    connection = connect()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                update public.job_runs
+                set status = 'processing', started_at = now()
+                where id = %(run_id)s
+                """,
+                {"run_id": run_id},
+            )
+            if cursor.rowcount != 1:
+                raise RuntimeError(f"job_runs row {run_id} was not updated")
+    except psycopg.errors.UniqueViolation as exc:
+        connection.rollback()
+        connection.close()
+        raise ProcessingLockHeld(run_id) from exc
+    except Exception:
+        connection.rollback()
+        connection.close()
+        raise
+    _finish(connection)
+
+
+def claim_run(job_name: str, target_date: date) -> str:
+    """Insert a row and mark it processing in one transaction.
+
+    A losing claim rolls back, so it leaves neither a pending nor a processing
+    row. The partial unique index on processing rows is what rejects it.
+    """
+    connection = connect()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                insert into public.job_runs (job_name, target_date, status)
+                values (%(job_name)s, %(target_date)s, 'pending')
+                returning id
+                """,
+                {"job_name": job_name, "target_date": target_date},
+            )
+            row = cursor.fetchone()
+            if row is None:
+                raise RuntimeError("job_runs insert did not return an id")
+            run_id = _run_id(row[0])
+            cursor.execute(
+                """
+                update public.job_runs
+                set status = 'processing', started_at = now()
+                where id = %(run_id)s
+                """,
+                {"run_id": run_id},
+            )
+    except psycopg.errors.UniqueViolation as exc:
+        connection.rollback()
+        connection.close()
+        raise ProcessingLockHeld(job_name) from exc
+    except Exception:
+        connection.rollback()
+        connection.close()
+        raise
+    _finish(connection)
+    return run_id
+
+
+def fail_if_processing(run_id: str, error_message: str) -> None:
+    """Mark a still-processing row failed. A terminal row is left unchanged."""
+    connection = connect()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                update public.job_runs
+                set status = 'failed',
+                    finished_at = now(),
+                    error_message = %(error_message)s
+                where id = %(run_id)s
+                  and status = 'processing'
+                """,
+                {"run_id": run_id, "error_message": error_message},
+            )
+    except Exception:
+        connection.rollback()
+        connection.close()
+        raise
+    _finish(connection)
 
 
 def mark_completed(run_id: str) -> None:

@@ -145,3 +145,9 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f services/api/supabase/migrations/2026
 ```
 
 `services/job_runner` is the only code that reads and writes this table. It opens `DATABASE_URL` with psycopg and does not import the FastAPI app.
+
+Apply `migrations/20261110021500_job_runs_one_processing.sql` to the same database after the table exists. It adds a partial unique index on `(job_name)` where `status = 'processing'`. That index is the only lock: a second processing claim for the same job is rejected, and a `completed` or `failed` row releases it. The file does not change `reporting.pipeline_runs`.
+
+```bash
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f services/api/supabase/migrations/20261110021500_job_runs_one_processing.sql
+```
