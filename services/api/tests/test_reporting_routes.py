@@ -50,35 +50,44 @@ def test_latest_run_reports_stored_metadata(monkeypatch) -> None:
     assert body["error_summary"] is None
 
 
-def test_trigger_calls_the_flow_and_a_live_lease_conflicts(monkeypatch) -> None:
+def test_trigger_enqueues_and_a_live_lease_conflicts(monkeypatch) -> None:
     called: dict = {}
 
-    def _run(week_start, trigger_type):
+    def _enqueue(week_start, trigger_type):
         called["week_start"] = week_start
         called["trigger_type"] = trigger_type
-        return {
-            "run_id": "8bb7302d-cbe7-49fc-ae56-3dddb12739a4",
-            "status": "running",
-            "trigger_type": trigger_type,
-        }
+        return "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
-    monkeypatch.setattr(reporting, "start_pipeline_run", _run)
+    monkeypatch.setattr(reporting, "live_lease_run_id", lambda: None)
+    monkeypatch.setattr(reporting, "_enqueue_weekly_pipeline", _enqueue)
     accepted = client.post(
         "/reporting/pipeline-runs",
         json={"week_start": "2026-10-12", "trigger_type": "backfill"},
     )
     assert accepted.status_code == 202
-    assert accepted.json()["status"] == "running"
+    assert accepted.json() == {"task_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}
     assert called == {"week_start": date(2026, 10, 12), "trigger_type": "backfill"}
 
-    def _busy(week_start, trigger_type):
-        del week_start, trigger_type
-        raise reporting.PipelineLeaseHeld("8bb7302d-cbe7-49fc-ae56-3dddb12739a4")
-
-    monkeypatch.setattr(reporting, "start_pipeline_run", _busy)
+    monkeypatch.setattr(
+        reporting,
+        "live_lease_run_id",
+        lambda: "8bb7302d-cbe7-49fc-ae56-3dddb12739a4",
+    )
     conflict = client.post("/reporting/pipeline-runs", json={"trigger_type": "manual"})
     assert conflict.status_code == 409
     assert conflict.json()["detail"]["active_run_id"] == "8bb7302d-cbe7-49fc-ae56-3dddb12739a4"
+
+
+def test_trigger_returns_503_when_the_broker_is_down(monkeypatch) -> None:
+    def _down(week_start, trigger_type):
+        del week_start, trigger_type
+        raise reporting.QueueUnavailable("Redis is unreachable")
+
+    monkeypatch.setattr(reporting, "live_lease_run_id", lambda: None)
+    monkeypatch.setattr(reporting, "_enqueue_weekly_pipeline", _down)
+    response = client.post("/reporting/pipeline-runs", json={"trigger_type": "manual"})
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Queue unavailable"
 
 
 def test_weekly_performance_uses_pipeline_rows(monkeypatch) -> None:

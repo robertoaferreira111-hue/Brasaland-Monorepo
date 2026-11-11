@@ -14,6 +14,8 @@ no published rows, and 503 when reporting storage is unavailable.
 
 from __future__ import annotations
 
+import logging
+import os
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -28,14 +30,35 @@ _PIPELINES = _REPO / "data" / "pipelines"
 sys.path.insert(0, str(_API))
 sys.path.insert(0, str(_PIPELINES))
 
+import redis
+
+from app.config import _load_env_files  # noqa: E402
 from app.deps import current_user_email  # noqa: E402
+from app.tasks.weekly_pipeline import run_weekly_pipeline  # noqa: E402
 from pipeline import (  # noqa: E402
-    PipelineLeaseHeld,
     get_latest_pipeline_run,
     get_weekly_location_performance,
     last_completed_week_start,
-    start_pipeline_run,
+    live_lease_run_id,
 )
+
+
+def _open_broker() -> None:
+    """Connect once at import so the first enqueue does not pay for setup."""
+    _load_env_files()
+    url = os.getenv("REDIS_URL", "").strip()
+    if not url:
+        return
+    client = redis.Redis.from_url(url, socket_connect_timeout=1, socket_timeout=1)
+    client.ping()
+    with run_weekly_pipeline.app.connection_for_write() as connection:
+        connection.ensure_connection(max_retries=0, timeout=1)
+
+
+try:
+    _open_broker()
+except Exception:
+    logging.getLogger("brasaland.reporting").warning("Redis broker was not reachable at startup")
 
 router = APIRouter(prefix="/reporting", tags=["reporting"])
 
@@ -117,28 +140,54 @@ def latest_pipeline_run(_email: str = Depends(current_user_email)) -> dict[str, 
     return row
 
 
+class QueueUnavailable(Exception):
+    """The Celery broker could not accept a task."""
+
+
+def _enqueue_weekly_pipeline(week_start: date | None, trigger_type: str) -> str:
+    """Publish identifiers only. A one-second broker check avoids a hung request."""
+    _load_env_files()
+    url = os.getenv("REDIS_URL", "").strip()
+    if not url:
+        raise QueueUnavailable("REDIS_URL is not set")
+    client = redis.Redis.from_url(url, socket_connect_timeout=1, socket_timeout=1)
+    try:
+        client.ping()
+    except Exception as exc:
+        raise QueueUnavailable("Redis is unreachable") from exc
+    week = None if week_start is None else week_start.isoformat()
+    try:
+        queued = run_weekly_pipeline.delay(week, trigger_type)
+    except Exception as exc:
+        raise QueueUnavailable("Redis is unreachable") from exc
+    return str(queued.id)
+
+
 @router.post("/pipeline-runs", status_code=status.HTTP_202_ACCEPTED)
-def trigger_pipeline_run(body: TriggerBody, _email: str = Depends(current_user_email)) -> dict[str, Any]:
+def trigger_pipeline_run(body: TriggerBody, _email: str = Depends(current_user_email)) -> dict[str, str]:
     try:
         if body.week_start is not None:
             _require_monday(body.week_start, "week_start")
         trigger_type = _accepted_trigger(body)
-        return start_pipeline_run(body.week_start, trigger_type)
-    except PipelineLeaseHeld as exc:
+        active = live_lease_run_id()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise _storage_unavailable(exc) from exc
+    if active is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "code": "pipeline_run_in_progress",
                 "message": "A weekly_location_cost_waste run already holds a live lease",
-                "active_run_id": exc.active_run_id,
+                "active_run_id": active,
             },
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        if "DATABASE_URL" in str(exc):
-            raise _storage_unavailable(exc) from exc
-        raise
+        )
+    try:
+        task_id = _enqueue_weekly_pipeline(body.week_start, trigger_type)
+    except QueueUnavailable as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Queue unavailable") from exc
+    return {"task_id": task_id}
 
 
 @router.get("/weekly-location-performance")

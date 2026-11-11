@@ -492,6 +492,26 @@ def _active_run_id() -> str | None:
     return None if found is None else found[0]
 
 
+def live_lease_run_id() -> str | None:
+    """Return the run id of a live lease. Does not insert or update."""
+    now = datetime.now(timezone.utc)
+    with open_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                select run_id::text, lease_expires_at
+                from reporting.pipeline_runs
+                where pipeline_name = %(pipeline_name)s and status = 'running'
+                limit 1
+                """,
+                {"pipeline_name": PIPELINE_NAME},
+            )
+            found = cursor.fetchone()
+    if found is None or not lease_is_live(found[1], now):
+        return None
+    return found[0]
+
+
 def _finish(run: dict[str, Any], status: str, stage: str | None, error: str | None) -> dict[str, Any]:
     finished = datetime.now(timezone.utc)
     run["status"] = status
