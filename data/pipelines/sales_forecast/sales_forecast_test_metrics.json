@@ -1,0 +1,26 @@
+{
+  "test_start": "2024-01-01",
+  "test_end": "2025-12-01",
+  "test_months": 24,
+  "mse_usd2": 837440384.8172113,
+  "root_mean_squared_error_usd": 28938.562245163655,
+  "mean_absolute_percentage_error": 0.031313584306078314,
+  "psi": 7.539676148868511,
+  "gini": 0.8474970604083586,
+  "k2_score": 0.8461353216747903,
+  "band_method": "training out-of-fold seasonal-index residual quantiles, 10th and 90th, times the previous 12-month mean",
+  "band_residual_quantiles_10_90": [
+    -0.04456601884440781,
+    0.05807846154133616
+  ],
+  "band_coverage": 0.8333333333333334,
+  "test_months_above_training_upper_quartile": 23,
+  "test_months_above_training_max": 2,
+  "assumptions": [
+    "PSI, Gini, and K2 Score have no formula in CONTEXT-company.md or the repo metric notes.",
+    "K2 Score is computed as the coefficient of determination. The screenshot names R2 Score in this slot.",
+    "PSI uses training-year actual sales as the reference distribution and test-year actual sales as the current distribution.",
+    "PSI cut points 0.10 and 0.25 are the usual industry reading, not a Brasaland rule.",
+    "Gini is the normalized Gini of actual sales ordered by the forecast."
+  ]
+}
