@@ -1,0 +1,194 @@
+{
+  "target": "seasonal_index",
+  "units": "seasonal_index (unitless ratio: revenue_usd / trailing 12-month mean)",
+  "held_out_test_years_used": false,
+  "briefing_evidence": {
+    "CONTEXT-company.md": [
+      "Mariana (CEO) wants to know whether, before investing in a full executive dashboard, it's possible to predict how much the chain will sell in the coming months within a reasonable margin.",
+      "A low **Gini** means the model doesn't distinguish well between \"good\" and \"bad\" months \u2014 for Mariana this matters as much as the absolute error, since she needs to identify underperforming months in advance.",
+      "Report **MSE** in USD\u00b2, but also translate it into an average percentage error, since that's how Felipe and Mariana actually understand the number."
+    ],
+    "company-BRIEFING.md": [
+      "Mariana (CEO) wants a weekly report she can open every Monday without calling anyone, comparing how each of the 14 locations is performing on cost and waste \u2014 the two levers Felipe and Luc\u00eda keep raising but that nobody currently tracks centrally.",
+      "Waste Cost per Location\tHow much a location lost to expired product, kitchen error, or theft during the week, in monetary terms.\tWaste is a direct hit to margin \u2014 this is the number Felipe needs to prioritize audits.",
+      "Stockout Frequency\tHow many times during the week a location's stock of some ingredient fell below the configured minimum.\tA leading indicator of service risk \u2014 frequent stockouts mean the kitchen may run out of a key ingredient mid-service."
+    ],
+    "ranks_over_vs_under_estimation": false
+  },
+  "primary_metric_recommendation": {
+    "metric": "mae",
+    "justification": "CONTEXT-company.md discusses forecast quality via margin, Gini, MSE, and percentage error, and does not mention waste, stockouts, or whether overestimation versus underestimation is costlier. Root company-BRIEFING.md discusses waste and stockouts as operations KPIs for a weekly cost report, and does not connect them to sales-forecast error direction or rank overestimation versus underestimation. Because neither source ranks the directions, MAE is the primary metric: it treats misses of either sign equally."
+  },
+  "temporal_cv": {
+    "n_splits": 5,
+    "folds": [
+      {
+        "fold": 1,
+        "n_train": 12,
+        "n_val": 12,
+        "train_mae": 0.005596095331711358,
+        "train_rmse": 0.007336118489026004,
+        "val_mae": 0.050293918227642946,
+        "val_rmse": 0.06260086991113827,
+        "train_month_min": "2018-01-01",
+        "train_month_max": "2018-12-01",
+        "val_month_min": "2019-01-01",
+        "val_month_max": "2019-12-01"
+      },
+      {
+        "fold": 2,
+        "n_train": 24,
+        "n_val": 12,
+        "train_mae": 0.006115432162859942,
+        "train_rmse": 0.007743134741908433,
+        "val_mae": 0.03950247061272144,
+        "val_rmse": 0.04513424437879728,
+        "train_month_min": "2018-01-01",
+        "train_month_max": "2019-12-01",
+        "val_month_min": "2020-01-01",
+        "val_month_max": "2020-12-01"
+      },
+      {
+        "fold": 3,
+        "n_train": 36,
+        "n_val": 12,
+        "train_mae": 0.008553340648147667,
+        "train_rmse": 0.010673489043600748,
+        "val_mae": 0.031247010663254,
+        "val_rmse": 0.03431953790786067,
+        "train_month_min": "2018-01-01",
+        "train_month_max": "2020-12-01",
+        "val_month_min": "2021-01-01",
+        "val_month_max": "2021-12-01"
+      },
+      {
+        "fold": 4,
+        "n_train": 48,
+        "n_val": 12,
+        "train_mae": 0.00989811919494203,
+        "train_rmse": 0.012617733119910424,
+        "val_mae": 0.03635648033818067,
+        "val_rmse": 0.043085634546012476,
+        "train_month_min": "2018-01-01",
+        "train_month_max": "2021-12-01",
+        "val_month_min": "2022-01-01",
+        "val_month_max": "2022-12-01"
+      },
+      {
+        "fold": 5,
+        "n_train": 60,
+        "n_val": 12,
+        "train_mae": 0.012046631326034484,
+        "train_rmse": 0.015111352320083881,
+        "val_mae": 0.04227041188606654,
+        "val_rmse": 0.04568789473175128,
+        "train_month_min": "2018-01-01",
+        "train_month_max": "2022-12-01",
+        "val_month_min": "2023-01-01",
+        "val_month_max": "2023-12-01"
+      }
+    ],
+    "train_mae": {
+      "mean": 0.008441923732739097,
+      "std": 0.0023932462513981245
+    },
+    "train_rmse": {
+      "mean": 0.010696365542905897,
+      "std": 0.002939289620636584
+    },
+    "val_mae": {
+      "mean": 0.03993405834557312,
+      "std": 0.006344058235030763
+    },
+    "val_rmse": {
+      "mean": 0.04616563629511199,
+      "std": 0.009178511514125328
+    },
+    "primary": {
+      "metric": "mae",
+      "mean": 0.03993405834557312,
+      "std": 0.006344058235030763
+    }
+  },
+  "learning_curve": {
+    "path": "data/eval/learning_curve.png",
+    "train_sizes": [
+      12,
+      24,
+      36,
+      48,
+      60
+    ],
+    "n_folds_per_size": [
+      5,
+      4,
+      3,
+      2,
+      1
+    ],
+    "points": [
+      {
+        "train_size": 12,
+        "n_folds": 5,
+        "train_mae_mean": 0.005596095331711358,
+        "train_mae_std": 0.0,
+        "val_mae_mean": 0.042903391610196254,
+        "val_mae_std": 0.011817745776688008,
+        "train_rmse_mean": 0.0073361184890260046,
+        "train_rmse_std": 8.673617379884035e-19,
+        "val_rmse_mean": 0.05161254110606441,
+        "val_rmse_std": 0.011930623554083183
+      },
+      {
+        "train_size": 24,
+        "n_folds": 4,
+        "train_mae_mean": 0.006115432162859942,
+        "train_mae_std": 0.0,
+        "val_mae_mean": 0.03733566661323791,
+        "val_mae_std": 0.008863431896260918,
+        "train_rmse_mean": 0.007743134741908433,
+        "train_rmse_std": 0.0,
+        "val_rmse_mean": 0.04139350627929374,
+        "val_rmse_std": 0.00886362768640788
+      },
+      {
+        "train_size": 36,
+        "n_folds": 3,
+        "train_mae_mean": 0.008553340648147667,
+        "train_mae_std": 0.0,
+        "val_mae_mean": 0.033482270229175624,
+        "val_mae_std": 0.00557185495277919,
+        "train_rmse_mean": 0.010673489043600748,
+        "train_rmse_std": 0.0,
+        "val_rmse_mean": 0.037539584913472014,
+        "val_rmse_std": 0.0046482100322600564
+      },
+      {
+        "train_size": 48,
+        "n_folds": 2,
+        "train_mae_mean": 0.00989811919494203,
+        "train_mae_std": 0.0,
+        "val_mae_mean": 0.035815229263540665,
+        "val_mae_std": 0.0005412510746400055,
+        "train_rmse_mean": 0.012617733119910424,
+        "train_rmse_std": 0.0,
+        "val_rmse_mean": 0.042225765887780056,
+        "val_rmse_std": 0.0008598686582324232
+      },
+      {
+        "train_size": 60,
+        "n_folds": 1,
+        "train_mae_mean": 0.012046631326034484,
+        "train_mae_std": 0.0,
+        "val_mae_mean": 0.04227041188606654,
+        "val_mae_std": 0.0,
+        "train_rmse_mean": 0.015111352320083881,
+        "train_rmse_std": 0.0,
+        "val_rmse_mean": 0.04568789473175128,
+        "val_rmse_std": 0.0
+      }
+    ],
+    "smallest_train_size_note": "Smallest training sizes are tiny (about 12 rows).",
+    "pattern_notes": "Smallest training sizes are tiny (about 12 feature-ready months). At size 12, training mae is 0.005596 and validation mae is 0.042903 (gap 0.037307). At size 60, training mae is 0.012047 and validation mae is 0.042270 (gap 0.030224). Across sizes, validation stays above training; the gap remains positive from the smallest size through the largest."
+  }
+}
