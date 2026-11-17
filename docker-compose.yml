@@ -7,7 +7,7 @@ services:
       dockerfile: services/api/Dockerfile
       target: development
     command:
-      - uvicorn
+      - /app/.venv/bin/uvicorn
       - app.main:app
       - --host
       - 0.0.0.0
@@ -18,6 +18,8 @@ services:
       - .env
     environment:
       BRASALAND_ROOT: /opt/brasaland
+      # Overrides the host URL in .env when the API runs inside Compose.
+      QDRANT_URL: http://qdrant:6333
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
@@ -27,6 +29,8 @@ services:
       - ./services/telemetry:/opt/brasaland/services/telemetry
       - ./data/pipelines:/opt/brasaland/data/pipelines
       - ./data/process:/opt/brasaland/data/process
+    depends_on:
+      - qdrant
     networks:
       - brasaland-net
     restart: unless-stopped
@@ -120,6 +124,16 @@ services:
       - brasaland-net
     restart: unless-stopped
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - brasaland-net
+    restart: unless-stopped
+
 volumes:
   api-venv:
   website-node-modules:
@@ -129,6 +143,7 @@ volumes:
   talent-node-modules:
   talent-next:
   redis-data:
+  qdrant_data:
 
 networks:
   brasaland-net:
