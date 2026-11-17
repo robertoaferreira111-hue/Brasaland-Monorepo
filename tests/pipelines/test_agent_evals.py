@@ -22,7 +22,10 @@ _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
 import data.pipelines.rag as rag  # noqa: E402
-from services.agent.graph import agent_graph  # noqa: E402
+from langgraph.graph import END, START, StateGraph  # noqa: E402
+
+from services.agent.graph import agent_graph, compile_support_graph  # noqa: E402
+from services.agent.state import AgentState  # noqa: E402
 from services.agent.tracing import invoke_config, read_trace  # noqa: E402
 
 _FAQ = "how many points do I need for Gold tier?"
@@ -144,3 +147,43 @@ def test_no_context_skips_generation(monkeypatch: pytest.MonkeyPatch) -> None:
     nodes = _nodes(trace_id)
     assert nodes == ["receive_question", "retrieve"]
     assert calls == ["retrieve"]
+
+
+def _noop(state: AgentState) -> dict:
+    del state
+    return {}
+
+
+def test_unreachable_node_fails_at_compile() -> None:
+    builder = StateGraph(AgentState)
+    builder.add_node("receive_question", _noop)
+    builder.add_node("orphan", _noop)
+    builder.set_entry_point("receive_question")
+    builder.add_edge("receive_question", END)
+    builder.add_edge("orphan", END)
+    with pytest.raises(ValueError, match="Node 'orphan' is unreachable from the entry point"):
+        compile_support_graph(builder)
+
+
+def test_node_without_path_to_end_fails_at_compile() -> None:
+    builder = StateGraph(AgentState)
+    builder.add_node("receive_question", _noop)
+    builder.add_node("stuck", _noop)
+    builder.add_edge(START, "receive_question")
+    builder.add_edge(START, "stuck")
+    builder.add_edge("receive_question", END)
+    with pytest.raises(ValueError, match="Node 'stuck' has no path to END"):
+        compile_support_graph(builder)
+
+
+def test_missing_edge_target_fails_at_compile() -> None:
+    builder = StateGraph(AgentState)
+    builder.add_node("receive_question", _noop)
+    builder.set_entry_point("receive_question")
+    builder.add_conditional_edges(
+        "receive_question",
+        lambda state: "missing",
+        {"missing": "missing"},
+    )
+    with pytest.raises(ValueError, match="targets unknown node 'missing'"):
+        compile_support_graph(builder)
