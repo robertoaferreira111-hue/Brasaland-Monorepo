@@ -1,0 +1,50 @@
+[
+  {
+    "question": "how many points do I need for Gold tier?",
+    "source_document": "loyalty-program",
+    "section": "Program tiers",
+    "chunk_index": 0
+  },
+  {
+    "question": "How many COP does a customer spend to earn 1 Brasa Point?",
+    "source_document": "loyalty-program",
+    "section": "\"Brasa Points\" Loyalty Program",
+    "chunk_index": 0
+  },
+  {
+    "question": "When does meat protein waste in a single shift require a mandatory explanatory note?",
+    "source_document": "waste-protocol",
+    "section": "Daily procedure",
+    "chunk_index": 0
+  },
+  {
+    "question": "What percentage of monthly ingredient cost should total waste stay below?",
+    "source_document": "waste-protocol",
+    "section": "Operational target",
+    "chunk_index": 0
+  },
+  {
+    "question": "does the BBQ Ribs dish have allergens?",
+    "source_document": "menu-allergens",
+    "section": "Main dishes and their declared allergens",
+    "chunk_index": 0
+  },
+  {
+    "question": "What must staff say about zero cross-contamination risk when a customer has a severe allergy?",
+    "source_document": "menu-allergens",
+    "section": "Protocol for customer-reported allergies",
+    "chunk_index": 0
+  },
+  {
+    "question": "When must a location manager place the weekly supplier order?",
+    "source_document": "supplier-ordering",
+    "section": "Supplier Ordering Procedure",
+    "chunk_index": 0
+  },
+  {
+    "question": "Who approves an emergency supplier order that exceeds 500 USD?",
+    "source_document": "supplier-ordering",
+    "section": "An emergency order requires approval from Lucía Fernández (Procurement Manager) if it exceeds 500 USD (or the COP equivalent)",
+    "chunk_index": 0
+  }
+]

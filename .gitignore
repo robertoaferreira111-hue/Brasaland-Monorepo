@@ -14,3 +14,4 @@ services/api/.pytest_cache/
 services/api/data/*.json
 .prefect-local/
 data/eval/*.json
+!data/eval/test-queries.json

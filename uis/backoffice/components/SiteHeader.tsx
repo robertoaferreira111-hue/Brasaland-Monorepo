@@ -7,7 +7,7 @@ import ApiLink from "./ApiLink";
 export default function SiteHeader({
   current,
 }: {
-  current?: "directory" | "account" | "password" | "telemetry" | "reporting";
+  current?: "directory" | "account" | "password" | "telemetry" | "reporting" | "knowledge";
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -22,6 +22,7 @@ export default function SiteHeader({
         <ApiLink href="/" aria-current={current === "directory" ? "page" : undefined}>Supplier directory</ApiLink>
         <ApiLink href="/reporting" aria-current={current === "reporting" ? "page" : undefined}>Weekly report</ApiLink>
         <ApiLink href="/telemetry" aria-current={current === "telemetry" ? "page" : undefined}>Telemetry</ApiLink>
+        <ApiLink href="/knowledge" aria-current={current === "knowledge" ? "page" : undefined}>Manuals</ApiLink>
         <ApiLink href="/account/profile" aria-current={current === "account" ? "page" : undefined}>Account</ApiLink>
         {current === "password" && <ApiLink href="/account/change-password" aria-current="page">Change password</ApiLink>}
         <button className="nav-logout" type="button" onClick={() => void logout()}>Log out</button>
