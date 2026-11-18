@@ -1,9 +1,9 @@
 """Routing decisions and traces for the ticket tool.
 
 Decision tests do not call the incident service. Trace tests call the real
-lookup. The RAG-only trace calls the real retrieve step. When the embedding
-settings are unset, that run records the retrieval failure and is not a
-grounded answer.
+lookup. The RAG-only trace calls the real retrieve step. A retrieval error, a
+stop when nothing is above the threshold, and an answer from query are
+all accepted. This file does not treat any of those as a grounded answer.
 """
 
 from __future__ import annotations
@@ -189,20 +189,28 @@ def test_stubbed_storage_failure_trace(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_rag_only_trace_uses_the_real_retrieve() -> None:
-    """Live manuals when credentials and Qdrant are available. Otherwise the
-    retrieval failure is the real RAG-only trace and is not a grounded answer.
+    """The refund question stays on the manuals.
+
+    Part 1 may then stop with a retrieval error, stop because nothing is
+    above the threshold, or continue to query. This assertion does not
+    require query. It fails if the question is sent to the ticket tool.
     """
     trace = _run(_REFUND)
     nodes = _nodes(trace)
     assert trace["route"] == "rag"
     assert "No incident id" in trace["route_rationale"]
+    assert "no incident filter" in trace["route_rationale"]
+    assert trace["incident_id"] is None
+    assert trace["incident_status"] is None
+    assert trace["incident_category"] is None
     assert "lookup_ticket" not in nodes
-    assert "retrieve" in nodes
+    assert "handle_tool_failure" not in nodes
     assert trace["sources"] == ["rag"]
     assert trace["tool_outcome"] is None
+    assert "retrieve" in nodes
+    if "query" in nodes:
+        assert nodes.index("retrieve") < nodes.index("query")
     if trace["error"]:
-        assert str(trace["error"]).startswith("Retrieval failed")
-        assert "query" not in nodes
+        assert str(trace["error"]).startswith(("Retrieval failed", "Generation failed"))
     else:
         assert trace["answer"]
-        assert nodes.index("retrieve") < nodes.index("query")
