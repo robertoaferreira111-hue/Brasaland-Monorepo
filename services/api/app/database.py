@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "suppliers.json"
 SUPPLIERS_TABLE = "suppliers"
+INCIDENTS_TABLE = "incidents"
 USERS_TABLE = "users"
 REFRESH_TABLE = "refresh_tokens"
 RESET_TOKENS_TABLE = "password_reset_tokens"
@@ -45,12 +46,26 @@ def suppliers_table(db: TinyDB) -> Table:
     return db.table(SUPPLIERS_TABLE)
 
 
+def incidents_table(db: TinyDB) -> Table:
+    return db.table(INCIDENTS_TABLE)
+
+
 def get_table() -> Iterator[Table]:
     """Yield the suppliers table, or raise StorageError if the DB cannot be opened."""
     with _db_lock:
         db = open_db()
         try:
             yield suppliers_table(db)
+        finally:
+            db.close()
+
+
+def get_incidents_table() -> Iterator[Table]:
+    """Yield the incidents table from the same TinyDB file as other domain data."""
+    with _db_lock:
+        db = open_db()
+        try:
+            yield incidents_table(db)
         finally:
             db.close()
 

@@ -9,6 +9,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from app.database import create_user, open_db, persist_supplier, suppliers_table, users_table
+from app.incidents import seed_incidents
 from app.errors import StorageError
 from app.models import RegisterUser, Supplier
 
@@ -252,6 +253,22 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"Seed complete. Inserted {result.inserted} supplier(s). "
         f"{result.total} supplier(s) stored."
+    )
+    try:
+        incidents = seed_incidents()
+    except StorageError:
+        print(
+            "Seed failed: could not read or write incident records. "
+            "Check file permissions and try again.",
+            file=sys.stderr,
+        )
+        return 1
+    except ValueError as exc:
+        print(f"Seed failed: {exc}", file=sys.stderr)
+        return 1
+    print(
+        f"Inserted {incidents.inserted} incident(s). "
+        f"{incidents.total} incident(s) stored."
     )
     print(seed_staff_user())
     return 0
