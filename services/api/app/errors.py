@@ -4,6 +4,7 @@ from __future__ import annotations
 
 STORAGE_UNAVAILABLE = "Storage unavailable"
 STORED_DATA_INVALID = "Stored supplier data is invalid"
+STORED_INCIDENT_INVALID = "Stored incident data is invalid"
 UNEXPECTED_ERROR = "An unexpected error occurred"
 
 

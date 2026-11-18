@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.errors import StorageError
+from app.incidents import IncidentSeedResult
 from app.seed import main, seed_suppliers
 
 
@@ -13,6 +14,10 @@ def test_main_success_prints_to_stdout(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(
         "app.seed.seed_suppliers",
         lambda: seed_suppliers(db_path),
+    )
+    monkeypatch.setattr(
+        "app.seed.seed_incidents",
+        lambda: IncidentSeedResult(inserted=0, total=0),
     )
     monkeypatch.setattr(
         "app.seed.seed_staff_user",

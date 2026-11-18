@@ -6,7 +6,9 @@ Staff JWT auth and the supplier directory share this FastAPI app. Supplier route
 
 - `services/api/app/main.py`
 - `services/api/app/models.py` — supplier schema and staff auth models
-- `services/api/app/database.py` — TinyDB tables `suppliers`, `users`, `refresh_tokens`, and `password_reset_tokens`
+- `services/api/app/database.py` — TinyDB tables `suppliers`, `incidents`, `users`, `refresh_tokens`, and `password_reset_tokens`
+- `services/api/app/incidents.py` — incident CSV load and in-process reads
+- `services/api/app/routers/incidents.py` — `GET /api/incidents` and `GET /api/incidents/{incident_id}`
 - `services/api/app/seed.py`
 - `services/api/app/security.py` — PBKDF2 passwords, reset-token hashing, and PyJWT
 - `services/api/app/config.py` / `email.py` / `rate_limit.py` / `reset_tokens.py` — password recovery
@@ -30,7 +32,7 @@ uv sync
 uv run seed
 ```
 
-The supplier seed is idempotent. A second run inserts 0 suppliers. The same command creates `staff@brasaland.com` / `demo-password` when that account is missing.
+The supplier seed is idempotent. A second run inserts 0 suppliers. The same command loads `data/raw/incidents-brasaland.csv` into the `incidents` table, skipping an `incident_id` that is already stored, and creates `staff@brasaland.com` / `demo-password` when that account is missing. Provenance of the CSV is in `data/raw/incidents-brasaland.md`.
 
 ## Run API
 
@@ -56,6 +58,12 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - `POST /auth/reset-password` — `{ token, new_password }`
 - `POST /auth/change-password` — Bearer `{ current_password, new_password }`
 - `/suppliers` — every method requires `Authorization: Bearer <access_token>`
+- `GET /api/incidents` — Bearer list. Optional query `status` (`OPEN`, `CLOSED`, `DISCARDED`) and `category` (`CUSTOMER_COMPLAINT`, `EQUIPMENT`, `SUPPLY`, `FOOD_QUALITY`, `STAFF`)
+- `GET /api/incidents/{incident_id}` — Bearer. `incident_id` is the CSV id, for example `BRS-000001`. Missing ids return `404` `{"detail":"Incident not found"}`
+
+Incident reads use the same staff access token as `/suppliers`. A backend caller sends `Authorization: Bearer <access_token>` from `POST /auth/login`. There is no separate service credential. `JWT_SECRET` must be the secret that signed the token. These routes do not create, update, or delete incidents.
+
+In-process readers call `get_incident_record` and `list_incidents` in `app.incidents`. That import needs `services/api` on `sys.path`, which is how this API process already runs.
 
 Set `JWT_SECRET` outside local demo use. For recovery email delivery, set `RESEND_API_KEY` (or `SENDGRID_API_KEY`), `EMAIL_FROM`, and `FRONTEND_URL` (see repo `.env.example`).
 
