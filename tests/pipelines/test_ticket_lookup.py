@@ -245,6 +245,14 @@ def test_contract_exposes_only_incident_api_fields() -> None:
     }
 
 
-def test_part1_graph_has_no_ticket_node() -> None:
+def test_graph_nodes_include_the_ticket_path() -> None:
     names = {name for name in agent_graph.nodes if not str(name).startswith("__")}
-    assert names == {"receive_question", "retrieve", "query"}
+    assert names == {
+        "receive_question",
+        "route_intent",
+        "retrieve",
+        "query",
+        "lookup_ticket",
+        "handle_tool_failure",
+        "synthesize_answer",
+    }

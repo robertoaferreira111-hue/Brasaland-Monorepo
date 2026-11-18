@@ -11,11 +11,19 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from services.agent.nodes import (
+    after_failure,
+    after_lookup,
+    after_query,
     after_receive,
     after_retrieve,
+    after_route,
+    handle_tool_failure,
+    lookup_ticket_node,
     query_node,
     receive_question,
     retrieve_node,
+    route_intent,
+    synthesize_answer,
 )
 from services.agent.state import AgentState
 
@@ -90,20 +98,48 @@ def compile_support_graph(builder: StateGraph):
 def build_agent_graph():
     builder = StateGraph(AgentState)
     builder.add_node("receive_question", receive_question)
+    builder.add_node("route_intent", route_intent)
     builder.add_node("retrieve", retrieve_node)
     builder.add_node("query", query_node)
+    builder.add_node("lookup_ticket", lookup_ticket_node)
+    builder.add_node("handle_tool_failure", handle_tool_failure)
+    builder.add_node("synthesize_answer", synthesize_answer)
     builder.set_entry_point("receive_question")
     builder.add_conditional_edges(
         "receive_question",
         after_receive,
-        {"retrieve": "retrieve", "end": END},
+        {"route_intent": "route_intent", "end": END},
+    )
+    builder.add_conditional_edges(
+        "route_intent",
+        after_route,
+        {"retrieve": "retrieve", "lookup_ticket": "lookup_ticket"},
+    )
+    builder.add_conditional_edges(
+        "lookup_ticket",
+        after_lookup,
+        {
+            "retrieve": "retrieve",
+            "handle_tool_failure": "handle_tool_failure",
+            "synthesize_answer": "synthesize_answer",
+        },
+    )
+    builder.add_conditional_edges(
+        "handle_tool_failure",
+        after_failure,
+        {"retrieve": "retrieve", "synthesize_answer": "synthesize_answer"},
     )
     builder.add_conditional_edges(
         "retrieve",
         after_retrieve,
-        {"query": "query", "end": END},
+        {"query": "query", "end": END, "synthesize_answer": "synthesize_answer"},
     )
-    builder.add_edge("query", END)
+    builder.add_conditional_edges(
+        "query",
+        after_query,
+        {"end": END, "synthesize_answer": "synthesize_answer"},
+    )
+    builder.add_edge("synthesize_answer", END)
     return compile_support_graph(builder)
 
 

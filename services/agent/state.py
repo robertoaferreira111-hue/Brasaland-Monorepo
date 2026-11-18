@@ -12,9 +12,17 @@ import operator
 from typing import Annotated, Sequence, TypedDict
 
 
-class AgentState(TypedDict):
+class AgentState(TypedDict, total=False):
     question: str
     retrieved_context: list[dict] | None
     answer: str | None
     trace_steps: Annotated[Sequence[dict], operator.add]
     error: str | None
+    route: str | None
+    route_rationale: str | None
+    incident_id: str | None
+    incident_status: str | None
+    incident_category: str | None
+    tool_results: list[dict] | None
+    tool_answer: str | None
+    final_answer: str | None
