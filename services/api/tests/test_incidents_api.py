@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.incidents import get_incident_record, read_incident_csv, seed_incidents
+from app.incidents import default_csv_path, get_incident_record, read_incident_csv, seed_incidents
 from app.main import app
 
 CSV_FIELDS = (
@@ -127,6 +127,11 @@ def test_seed_is_idempotent_and_in_process_read_matches(db_path: Path):
         "BRS-000001"
     ]
     assert get_incident_record("BRS-999999") is None
+
+
+def test_csv_path_follows_brasaland_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    monkeypatch.setenv("BRASALAND_ROOT", str(tmp_path))
+    assert default_csv_path() == tmp_path / "data" / "raw" / "incidents-brasaland.csv"
 
 
 def test_openapi_lists_read_routes_only(client: TestClient):

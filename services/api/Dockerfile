@@ -23,6 +23,7 @@ COPY services/telemetry /opt/brasaland/services/telemetry
 COPY services/reporting /opt/brasaland/services/reporting
 COPY data/pipelines /opt/brasaland/data/pipelines
 COPY data/process /opt/brasaland/data/process
+COPY data/raw /opt/brasaland/data/raw
 RUN uv sync --frozen
 
 EXPOSE 8000
@@ -37,6 +38,7 @@ COPY services/telemetry /opt/brasaland/services/telemetry
 COPY services/reporting /opt/brasaland/services/reporting
 COPY data/pipelines /opt/brasaland/data/pipelines
 COPY data/process /opt/brasaland/data/process
+COPY data/raw /opt/brasaland/data/raw
 RUN uv sync --frozen --no-dev
 
 EXPOSE 8000

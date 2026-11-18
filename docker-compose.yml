@@ -29,6 +29,7 @@ services:
       - ./services/telemetry:/opt/brasaland/services/telemetry
       - ./data/pipelines:/opt/brasaland/data/pipelines
       - ./data/process:/opt/brasaland/data/process
+      - ./data/raw:/opt/brasaland/data/raw
     depends_on:
       - qdrant
     networks:

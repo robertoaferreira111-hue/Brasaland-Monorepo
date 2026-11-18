@@ -32,7 +32,7 @@ uv sync
 uv run seed
 ```
 
-The supplier seed is idempotent. A second run inserts 0 suppliers. The same command loads `data/raw/incidents-brasaland.csv` into the `incidents` table, skipping an `incident_id` that is already stored, and creates `staff@brasaland.com` / `demo-password` when that account is missing. Provenance of the CSV is in `data/raw/incidents-brasaland.md`.
+The supplier seed is idempotent. A second run inserts 0 suppliers. The same command loads `data/raw/incidents-brasaland.csv` into the `incidents` table, skipping an `incident_id` that is already stored, and creates `staff@brasaland.com` / `demo-password` when that account is missing. When `BRASALAND_ROOT` is set, as it is in Compose, that CSV is read from `$BRASALAND_ROOT/data/raw/`. Provenance of the CSV is in `data/raw/incidents-brasaland.md`.
 
 ## Run API
 

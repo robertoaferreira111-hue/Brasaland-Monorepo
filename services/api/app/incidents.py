@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import os
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -68,7 +69,10 @@ class IncidentSeedResult:
 
 
 def default_csv_path() -> Path:
-    """Repo data/raw file, resolved from this module's location."""
+    """Incident CSV. Inside Compose, BRASALAND_ROOT points at the mounted data tree."""
+    root = os.environ.get("BRASALAND_ROOT", "").strip()
+    if root:
+        return Path(root) / "data" / "raw" / "incidents-brasaland.csv"
     return Path(__file__).resolve().parents[3] / "data" / "raw" / "incidents-brasaland.csv"
 
 
