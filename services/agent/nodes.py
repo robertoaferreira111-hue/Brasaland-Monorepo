@@ -1,16 +1,48 @@
-"""Receive, retrieve, and generate. Each node does one of those steps."""
+"""Receive, route, retrieve, look up a ticket, and answer.
+
+RAG-only runs keep the Part 1 step list. route_intent still runs, and it
+writes a trace step only when the route is the ticket tool or both. A ticket
+failure becomes an answer. It does not raise and it does not invent a status.
+"""
 
 from __future__ import annotations
 
 import data.pipelines.rag as rag
 
+from services.agent.routing import decide_route
 from services.agent.state import AgentState
 
 _EMPTY_QUESTION = "Question is empty."
+_NOT_FOUND = "I couldn't find incident {incident_id}."
+_NOT_FOUND_FILTER = "I couldn't find an incident matching that request."
+_TIMEOUT = "I couldn't confirm that incident right now. The lookup timed out."
+_HTTP_ERROR = (
+    "I couldn't confirm that incident right now. "
+    "The incident service returned an error."
+)
+_MANUALS_UNCHECKED = "I couldn't check the Brasaland manuals for this question."
+_MANUALS_UNWRITTEN = "I couldn't write the manual answer for this question."
+_FIELDS = (
+    "status",
+    "date",
+    "location_id",
+    "category",
+    "description",
+    "customer_id",
+    "satisfaction_score",
+    "reporter_id",
+)
 
 
 def _step(node: str, order: int, output_summary: str) -> dict:
     return {"node": node, "order": order, "output_summary": output_summary}
+
+
+def _next_order(state: AgentState) -> int:
+    steps = state.get("trace_steps") or []
+    if not steps:
+        return 1
+    return max(int(step.get("order", 0)) for step in steps) + 1
 
 
 def receive_question(state: AgentState) -> dict:
@@ -32,7 +64,81 @@ def receive_question(state: AgentState) -> dict:
 def after_receive(state: AgentState) -> str:
     if state.get("error") or not str(state.get("question", "")).strip():
         return "end"
+    return "route_intent"
+
+
+def route_intent(state: AgentState) -> dict:
+    decision = decide_route(str(state.get("question", "")))
+    update: dict = {
+        "route": decision.route,
+        "route_rationale": decision.rationale,
+        "incident_id": decision.incident_id,
+        "incident_status": decision.status,
+        "incident_category": decision.category,
+        "error": None,
+    }
+    if decision.route != "rag":
+        update["trace_steps"] = [
+            _step(
+                "route_intent",
+                _next_order(state),
+                f"route={decision.route}; {decision.rationale}",
+            )
+        ]
+    return update
+
+
+def after_route(state: AgentState) -> str:
+    if state.get("route") in {"tool", "both"}:
+        return "lookup_ticket"
     return "retrieve"
+
+
+def lookup_ticket_node(state: AgentState) -> dict:
+    from services.agent.tools.ticket_lookup import lookup_ticket
+
+    result = lookup_ticket(
+        state.get("incident_id"),
+        status=state.get("incident_status"),
+        category=state.get("incident_category"),
+    )
+    outcome = "success" if result.found else (result.error or "http_error")
+    return {
+        "tool_results": [result.model_dump(mode="json")],
+        "error": None,
+        "trace_steps": [
+            _step("lookup_ticket", _next_order(state), f"outcome={outcome}")
+        ],
+    }
+
+
+def after_lookup(state: AgentState) -> str:
+    if _tool_found(state):
+        if state.get("route") == "both":
+            return "retrieve"
+        return "synthesize_answer"
+    return "handle_tool_failure"
+
+
+def handle_tool_failure(state: AgentState) -> dict:
+    text = _failure_text(state)
+    return {
+        "tool_answer": text,
+        "error": None,
+        "trace_steps": [
+            _step(
+                "handle_tool_failure",
+                _next_order(state),
+                f"outcome={_tool_outcome(state)}",
+            )
+        ],
+    }
+
+
+def after_failure(state: AgentState) -> str:
+    if state.get("route") == "both":
+        return "retrieve"
+    return "synthesize_answer"
 
 
 def retrieve_node(state: AgentState) -> dict:
@@ -42,14 +148,16 @@ def retrieve_node(state: AgentState) -> dict:
         return {
             "retrieved_context": None,
             "error": f"Retrieval failed: {exc}",
-            "trace_steps": [_step("retrieve", 2, "retrieval failed")],
+            "trace_steps": [_step("retrieve", _next_order(state), "retrieval failed")],
         }
     if not context:
         return {
             "retrieved_context": [],
             "answer": rag._NOT_ENOUGH,
             "error": None,
-            "trace_steps": [_step("retrieve", 2, "0 chunks above threshold")],
+            "trace_steps": [
+                _step("retrieve", _next_order(state), "0 chunks above threshold")
+            ],
         }
     return {
         "retrieved_context": context,
@@ -57,7 +165,7 @@ def retrieve_node(state: AgentState) -> dict:
         "trace_steps": [
             _step(
                 "retrieve",
-                2,
+                _next_order(state),
                 f"{len(context)} chunk{'s' if len(context) != 1 else ''} above threshold",
             )
         ],
@@ -65,9 +173,10 @@ def retrieve_node(state: AgentState) -> dict:
 
 
 def after_retrieve(state: AgentState) -> str:
-    if state.get("error"):
-        return "end"
-    if not state.get("retrieved_context"):
+    failed = bool(state.get("error")) or not state.get("retrieved_context")
+    if state.get("route") == "both" and failed:
+        return "synthesize_answer"
+    if failed:
         return "end"
     return "query"
 
@@ -79,10 +188,105 @@ def query_node(state: AgentState) -> dict:
     except Exception as exc:
         return {
             "error": f"Generation failed: {exc}",
-            "trace_steps": [_step("query", 3, "generation failed")],
+            "trace_steps": [_step("query", _next_order(state), "generation failed")],
         }
     return {
         "answer": answer,
         "error": None,
-        "trace_steps": [_step("query", 3, "answer generated")],
+        "trace_steps": [_step("query", _next_order(state), "answer generated")],
     }
+
+
+def after_query(state: AgentState) -> str:
+    if state.get("error") and state.get("route") != "both":
+        return "end"
+    return "synthesize_answer"
+
+
+def synthesize_answer(state: AgentState) -> dict:
+    route = state.get("route")
+    if route == "rag":
+        answer = str(state.get("answer") or "")
+        return {
+            "final_answer": answer,
+            "trace_steps": [
+                _step("synthesize_answer", _next_order(state), "manual answer kept")
+            ],
+        }
+    tool_text = state.get("tool_answer") or _format_results(state.get("tool_results"))
+    if route == "both":
+        answer = _both_answer(tool_text, state)
+        summary = "ticket result and manuals"
+    else:
+        answer = tool_text
+        summary = "ticket result only"
+    return {
+        "answer": answer,
+        "final_answer": answer,
+        "error": None,
+        "trace_steps": [_step("synthesize_answer", _next_order(state), summary)],
+    }
+
+
+def _tool_found(state: AgentState) -> bool:
+    results = state.get("tool_results") or []
+    if not results:
+        return False
+    return results[-1].get("found") is True
+
+
+def _tool_outcome(state: AgentState) -> str:
+    results = state.get("tool_results") or []
+    if not results:
+        return "http_error"
+    last = results[-1]
+    if last.get("found") is True:
+        return "success"
+    error = last.get("error")
+    if error in {"timeout", "not_found", "http_error"}:
+        return str(error)
+    return "http_error"
+
+
+def _failure_text(state: AgentState) -> str:
+    outcome = _tool_outcome(state)
+    if outcome == "timeout":
+        return _TIMEOUT
+    if outcome == "http_error":
+        return _HTTP_ERROR
+    incident_id = state.get("incident_id")
+    if incident_id:
+        return _NOT_FOUND.format(incident_id=incident_id)
+    return _NOT_FOUND_FILTER
+
+
+def _format_results(results: list[dict] | None) -> str:
+    rows: list[dict] = []
+    for result in results or []:
+        rows.extend(result.get("incidents") or [])
+    if not rows:
+        return _NOT_FOUND_FILTER
+    blocks = [_format_incident(row) for row in rows]
+    if len(blocks) == 1:
+        return blocks[0]
+    return f"{len(blocks)} incidents matched.\n\n" + "\n\n".join(blocks)
+
+
+def _format_incident(row: dict) -> str:
+    lines = [f"Incident {row.get('incident_id')}:"]
+    for key in _FIELDS:
+        lines.append(f"{key}: {row.get(key)}")
+    return "\n".join(lines)
+
+
+def _both_answer(tool_text: str, state: AgentState) -> str:
+    error = str(state.get("error") or "")
+    if error.startswith("Retrieval failed"):
+        manuals = _MANUALS_UNCHECKED
+    elif error.startswith("Generation failed"):
+        manuals = _MANUALS_UNWRITTEN
+    elif state.get("answer"):
+        manuals = f"From the manuals: {state['answer']}"
+    else:
+        manuals = _MANUALS_UNCHECKED
+    return f"{tool_text}\n\n{manuals}"
