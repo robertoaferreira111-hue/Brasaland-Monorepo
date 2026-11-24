@@ -17,7 +17,9 @@ import pytest
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_ROOT / "services" / "api"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from mcp_stack import ensure_stack  # noqa: E402
 from services.agent.graph import agent_graph  # noqa: E402
 from services.agent.routing import decide_route  # noqa: E402
 from services.agent.tracing import invoke_config, read_trace  # noqa: E402
@@ -108,19 +110,10 @@ def test_the_same_question_always_routes_the_same_way() -> None:
     assert decide_route(_REFUND) == decide_route(_REFUND)
 
 
-@pytest.fixture
-def incident_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
-    db_path = tmp_path / "suppliers.json"
-    monkeypatch.setattr("app.database.DEFAULT_DB_PATH", db_path)
-    monkeypatch.delenv("BRASALAND_ROOT", raising=False)
-    return db_path
-
-
-def _seed() -> None:
-    from app.incidents import seed_incidents
-
-    seeded = seed_incidents()
-    assert seeded.total == 100
+@pytest.fixture(scope="module")
+def live_mcp(tmp_path_factory: pytest.TempPathFactory):
+    db_path = tmp_path_factory.mktemp("route-incidents") / "suppliers.json"
+    return ensure_stack(db_path)
 
 
 def _run(question: str) -> dict:
@@ -133,9 +126,8 @@ def _nodes(trace: dict) -> list[str]:
     return [step["node"] for step in trace["steps"]]
 
 
-def test_seeded_ticket_trace(incident_db: Path) -> None:
-    del incident_db
-    _seed()
+def test_seeded_ticket_trace(live_mcp) -> None:
+    del live_mcp
     trace = _run(_TICKET)
     assert trace["route"] == "tool"
     assert trace["incident_id"] == "BRS-000012"
@@ -153,9 +145,8 @@ def test_seeded_ticket_trace(incident_db: Path) -> None:
     assert "status: CLOSED" not in answer
 
 
-def test_missing_id_trace_is_not_found(incident_db: Path) -> None:
-    del incident_db
-    _seed()
+def test_missing_id_trace_is_not_found(live_mcp) -> None:
+    del live_mcp
     trace = _run("incident 482")
     assert trace["route"] == "tool"
     assert trace["incident_id"] == "BRS-000482"
@@ -167,22 +158,15 @@ def test_missing_id_trace_is_not_found(incident_db: Path) -> None:
     assert "CLOSED" not in trace["answer"]
 
 
-def test_stubbed_storage_failure_trace(monkeypatch: pytest.MonkeyPatch) -> None:
-    from app.errors import StorageError
-    from services.agent.tools import ticket_lookup
-
-    def fail(incident_id, status, category):
-        del incident_id, status, category
-        raise StorageError("Storage unavailable")
-
-    monkeypatch.setattr(ticket_lookup, "_load_records", fail)
+def test_unavailable_mcp_does_not_invent_a_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MCP_SERVER_URL", "http://127.0.0.1:1/mcp")
     trace = _run(_TICKET)
-    assert trace["tool_outcome"] == "http_error"
+    assert trace["tool_outcome"] == "unavailable"
     assert "handle_tool_failure" in _nodes(trace)
     assert "retrieve" not in _nodes(trace)
     assert trace["answer"] == (
         "I couldn't confirm that incident right now. "
-        "The incident service returned an error."
+        "The MCP server is unavailable."
     )
     assert "OPEN" not in trace["answer"]
     assert "CLOSED" not in trace["answer"]

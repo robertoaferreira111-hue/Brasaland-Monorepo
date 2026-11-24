@@ -10,6 +10,7 @@ dependencies = [
     "fastapi>=0.115",
     "flower>=2.2.0",
     "httpx>=0.28",
+    "langchain-mcp-adapters>=0.3.2",
     "langgraph>=1.2.22",
     "pandas>=2.2",
     "prefect>=3",
