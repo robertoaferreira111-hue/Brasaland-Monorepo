@@ -1,7 +1,7 @@
 """Routing evals for the support agent.
 
-These runs use a seeded TinyDB file and stubs. They do not call the incident
-HTTP routes, an embedding provider, a generation provider, or Qdrant.
+Ticket questions go through the MCP server. Manual questions stub retrieval
+and generation. They do not call an embedding provider or Qdrant.
 """
 
 from __future__ import annotations
@@ -15,9 +15,11 @@ import pytest
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_ROOT / "services" / "api"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import data.pipelines.rag as rag  # noqa: E402
 
+from mcp_stack import ensure_stack  # noqa: E402
 from services.agent.graph import agent_graph  # noqa: E402
 from services.agent.tracing import invoke_config, read_trace  # noqa: E402
 
@@ -25,10 +27,6 @@ _TICKET = "What's the status of BRS-000012?"
 _REFUND = "What is the refund policy for delayed shipments?"
 _BOTH = "What should we do about the refund policy for incident BRS-000012?"
 _MANUAL_ANSWER = "Refunds for a delayed shipment follow the supplier ordering manual."
-_FAILURE = (
-    "I couldn't confirm that incident right now. "
-    "The incident service returned an error."
-)
 _STATUSES = ("OPEN", "CLOSED", "DISCARDED")
 _CATEGORIES = (
     "CUSTOMER_COMPLAINT",
@@ -53,19 +51,10 @@ def _invoke(question: str) -> dict:
     return read_trace(trace_id)
 
 
-@pytest.fixture
-def incident_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
-    db_path = tmp_path / "suppliers.json"
-    monkeypatch.setattr("app.database.DEFAULT_DB_PATH", db_path)
-    monkeypatch.delenv("BRASALAND_ROOT", raising=False)
-    return db_path
-
-
-def _seed() -> None:
-    from app.incidents import seed_incidents
-
-    seeded = seed_incidents()
-    assert seeded.total == 100
+@pytest.fixture(scope="module")
+def live_mcp(tmp_path_factory: pytest.TempPathFactory):
+    db_path = tmp_path_factory.mktemp("eval-incidents") / "suppliers.json"
+    return ensure_stack(db_path)
 
 
 def _stub_manuals(monkeypatch: pytest.MonkeyPatch) -> list[str]:
@@ -100,25 +89,24 @@ def _stub_manuals(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 
 def _forbid_incident_read(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    from services.agent.tools import ticket_lookup
+    from services.agent import mcp_incidents
 
     calls: list[str] = []
 
-    def read(incident_id, status, category):
-        del incident_id, status, category
+    def read(**kwargs):
+        del kwargs
         calls.append("read")
         raise AssertionError("incident read must not run")
 
-    monkeypatch.setattr(ticket_lookup, "_load_records", read)
+    monkeypatch.setattr(mcp_incidents, "lookup_incidents", read)
     return calls
 
 
 def test_ticket_question_uses_the_tool_and_skips_rag(
-    incident_db: Path,
+    live_mcp,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    del incident_db
-    _seed()
+    del live_mcp
     manual_calls = _stub_manuals(monkeypatch)
     trace = _invoke(_TICKET)
     nodes = _nodes(trace)
@@ -161,14 +149,7 @@ def test_policy_question_uses_rag_and_does_not_read_incidents(
 def test_tool_failure_does_not_invent_ticket_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.errors import StorageError
-    from services.agent.tools import ticket_lookup
-
-    def fail(incident_id, status, category):
-        del incident_id, status, category
-        raise StorageError("Storage unavailable")
-
-    monkeypatch.setattr(ticket_lookup, "_load_records", fail)
+    monkeypatch.setenv("MCP_SERVER_URL", "http://127.0.0.1:1/mcp")
     trace = _invoke(_TICKET)
     nodes = _nodes(trace)
     assert trace["route"] == "tool"
@@ -176,15 +157,14 @@ def test_tool_failure_does_not_invent_ticket_fields(
     assert "handle_tool_failure" in nodes
     assert nodes.index("lookup_ticket") < nodes.index("handle_tool_failure")
     assert "retrieve" not in nodes
-    assert trace["tool_outcome"] == "http_error"
-    assert trace["answer"] == _FAILURE
+    assert trace["tool_outcome"] == "unavailable"
+    assert "MCP server is unavailable" in trace["answer"]
     for word in (*_STATUSES, *_CATEGORIES, "2024-", "not recorded"):
         assert word not in trace["answer"]
 
 
-def test_missing_id_is_not_found_without_an_invented_ticket(incident_db: Path) -> None:
-    del incident_db
-    _seed()
+def test_missing_id_is_not_found_without_an_invented_ticket(live_mcp) -> None:
+    del live_mcp
     trace = _invoke("incident 482")
     assert trace["route"] == "tool"
     assert trace["incident_id"] == "BRS-000482"
@@ -195,9 +175,8 @@ def test_missing_id_is_not_found_without_an_invented_ticket(incident_db: Path) -
         assert word not in trace["answer"]
 
 
-def test_null_category_is_reported_as_not_recorded(incident_db: Path) -> None:
-    del incident_db
-    _seed()
+def test_null_category_is_reported_as_not_recorded(live_mcp) -> None:
+    del live_mcp
     trace = _invoke("What's the category of BRS-000049?")
     assert trace["route"] == "tool"
     assert trace["tool_outcome"] == "success"
@@ -212,11 +191,10 @@ def test_null_category_is_reported_as_not_recorded(incident_db: Path) -> None:
 
 
 def test_both_runs_the_ticket_tool_before_rag(
-    incident_db: Path,
+    live_mcp,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    del incident_db
-    _seed()
+    del live_mcp
     manual_calls = _stub_manuals(monkeypatch)
     trace = _invoke(_BOTH)
     nodes = _nodes(trace)

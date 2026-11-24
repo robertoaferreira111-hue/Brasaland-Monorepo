@@ -10,6 +10,8 @@ __pycache__/
 *.pyc
 services/api/.venv/
 services/telemetry/.venv/
+mcps/company-tools/.venv/
+mcps/company-tools/.pytest_cache/
 services/api/.pytest_cache/
 services/api/data/*.json
 .prefect-local/

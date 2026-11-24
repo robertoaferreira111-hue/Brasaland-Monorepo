@@ -70,6 +70,6 @@ def _tool_outcome(results: object) -> str | None:
     if last.get("found") is True:
         return "success"
     error = last.get("error")
-    if error in {"timeout", "not_found", "http_error"}:
+    if error in {"timeout", "not_found", "http_error", "auth_error", "unavailable", "validation"}:
         return str(error)
     return None

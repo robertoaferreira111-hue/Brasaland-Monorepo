@@ -1,0 +1,36 @@
+[project]
+name = "brasaland-company-tools"
+version = "0.1.0"
+description = "Brasaland MCP server for the incidents and inventory tools"
+requires-python = ">=3.12"
+dependencies = [
+    # cryptography 43+ has no Intel macOS wheel; 42.x still satisfies FastMCP.
+    "cryptography>=36,<43",
+    "fastmcp>=2",
+    "httpx>=0.28",
+    "mcpauth==0.2.0b1",
+    "python-dotenv>=1.0",
+    "uvicorn>=0.32",
+]
+
+[project.scripts]
+company-tools = "company_tools.server:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["company_tools"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.uv]
+default-groups = ["dev"]

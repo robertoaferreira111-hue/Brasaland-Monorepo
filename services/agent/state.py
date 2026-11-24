@@ -23,6 +23,8 @@ class AgentState(TypedDict, total=False):
     incident_id: str | None
     incident_status: str | None
     incident_category: str | None
+    incident_action: str | None
+    incident_target_status: str | None
     tool_results: list[dict] | None
     tool_answer: str | None
     final_answer: str | None

@@ -1,8 +1,9 @@
 """Receive, route, retrieve, look up a ticket, and answer.
 
 RAG-only runs keep the Part 1 step list. route_intent still runs, and it
-writes a trace step only when the route is the ticket tool or both. A ticket
-failure becomes an answer. It does not raise and it does not invent a status.
+writes a trace step only when the route is the ticket tool or both. Ticket
+reads go through the MCP server. A ticket failure becomes an answer. It does
+not raise and it does not invent a status.
 """
 
 from __future__ import annotations
@@ -19,6 +20,14 @@ _TIMEOUT = "I couldn't confirm that incident right now. The lookup timed out."
 _HTTP_ERROR = (
     "I couldn't confirm that incident right now. "
     "The incident service returned an error."
+)
+_AUTH_ERROR = (
+    "I couldn't confirm that incident right now. "
+    "The MCP server rejected the access token."
+)
+_UNAVAILABLE = (
+    "I couldn't confirm that incident right now. "
+    "The MCP server is unavailable."
 )
 _MANUALS_UNCHECKED = "I couldn't check the Brasaland manuals for this question."
 _MANUALS_UNWRITTEN = "I couldn't write the manual answer for this question."
@@ -95,16 +104,22 @@ def after_route(state: AgentState) -> str:
 
 
 def lookup_ticket_node(state: AgentState) -> dict:
-    from services.agent.tools.ticket_lookup import lookup_ticket
+    from services.agent.mcp_incidents import lookup_incidents
 
-    result = lookup_ticket(
-        state.get("incident_id"),
-        status=state.get("incident_status"),
+    incident_id = state.get("incident_id")
+    action = state.get("incident_action") or ("get_status" if incident_id else "list")
+    status = state.get("incident_status")
+    if action == "update":
+        status = state.get("incident_target_status", status)
+    result = lookup_incidents(
+        action=str(action),
+        ticket_id=incident_id,
+        status=status,
         category=state.get("incident_category"),
     )
-    outcome = "success" if result.found else (result.error or "http_error")
+    outcome = "success" if result["found"] else (result["error"] or "http_error")
     return {
-        "tool_results": [result.model_dump(mode="json")],
+        "tool_results": [result],
         "error": None,
         "trace_steps": [
             _step("lookup_ticket", _next_order(state), f"outcome={outcome}")
@@ -243,7 +258,7 @@ def _tool_outcome(state: AgentState) -> str:
     if last.get("found") is True:
         return "success"
     error = last.get("error")
-    if error in {"timeout", "not_found", "http_error"}:
+    if error in {"timeout", "not_found", "http_error", "auth_error", "unavailable", "validation"}:
         return str(error)
     return "http_error"
 
@@ -252,6 +267,16 @@ def _failure_text(state: AgentState) -> str:
     outcome = _tool_outcome(state)
     if outcome == "timeout":
         return _TIMEOUT
+    if outcome == "auth_error":
+        return _AUTH_ERROR
+    if outcome == "unavailable":
+        return _UNAVAILABLE
+    if outcome == "validation":
+        results = state.get("tool_results") or []
+        message = results[-1].get("message") if results else None
+        if message:
+            return str(message)
+        return _HTTP_ERROR
     if outcome == "http_error":
         return _HTTP_ERROR
     incident_id = state.get("incident_id")
